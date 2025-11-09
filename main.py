@@ -695,8 +695,14 @@ You are giving your opening statement to the voters. What do you want to say? (R
             # Add the town hall context
             conversation_messages.append({"role": "user", "content": conversation_context})
             
+            if memory_context:
+                print(f"\n[RAG] {agent_config['full_name']} using {len(relevant_memories)} memories:")
+                for item, score in relevant_memories[:3]:  # Show top 3
+                    print(f"  - [{item.kind}:{item.topic}] score={score:.3f} {item.content[:80]}...")
+            
             # Get agent's response
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
+            print(f"[RESPONSE] {agent_config['full_name']}: {response[:100]}..." if len(response) > 100 else f"[RESPONSE] {agent_config['full_name']}: {response}")
             
             # Add to town hall history
             town_hall_history.append({
