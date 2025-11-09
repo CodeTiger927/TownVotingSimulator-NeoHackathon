@@ -40,20 +40,34 @@ interface Trajectory {
   }
 }
 
-interface CharacterPosition {
-  x: number
-  y: number
-  targetX: number
-  targetY: number
+interface GridPosition {
+  gridX: number
+  gridY: number
+  pixelX: number
+  pixelY: number
+  path: {x: number, y: number}[]
+  targetGridX: number
+  targetGridY: number
+  direction: 'down' | 'left' | 'right' | 'up'
+  animFrame: number
+  isMoving: boolean
 }
+
+const CELL_SIZE = 32
+const GRID_COLS = Math.floor(700 / CELL_SIZE)
+const GRID_ROWS = Math.floor(400 / CELL_SIZE)
+const SPRITE_FRAME_WIDTH = 32
+const SPRITE_FRAME_HEIGHT = 32
 
 function App() {
   const [trajectory, setTrajectory] = useState<Trajectory | null>(null)
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showFinalState, setShowFinalState] = useState(false)
-  const [characterPositions, setCharacterPositions] = useState<Record<string, CharacterPosition>>({})
+  const [characterPositions, setCharacterPositions] = useState<Record<string, GridPosition>>({})
   const animationFrameRef = useRef<number>()
+  const lastMoveTimeRef = useRef<number>(Date.now())
+  const lastAnimFrameTimeRef = useRef<number>(Date.now())
 
   const loadTrajectory = async (file: File) => {
     const text = await file.text()
@@ -62,13 +76,34 @@ function App() {
     setCurrentSpeechIndex(0)
     setShowFinalState(false)
     
-    const positions: Record<string, CharacterPosition> = {}
-    data.characters.forEach(char => {
+    const positions: Record<string, GridPosition> = {}
+    const occupiedCells = new Set<string>()
+    
+    data.characters.forEach((char, idx) => {
+      let gridX = 1 + (idx % (GRID_COLS - 2))
+      let gridY = 1 + Math.floor(idx / (GRID_COLS - 2))
+      
+      while (occupiedCells.has(`${gridX},${gridY}`)) {
+        gridX++
+        if (gridX >= GRID_COLS - 1) {
+          gridX = 1
+          gridY++
+        }
+      }
+      
+      occupiedCells.add(`${gridX},${gridY}`)
+      
       positions[char.id] = {
-        x: char.initial_position.x,
-        y: char.initial_position.y,
-        targetX: char.initial_position.x,
-        targetY: char.initial_position.y
+        gridX,
+        gridY,
+        pixelX: 50 + gridX * CELL_SIZE,
+        pixelY: 50 + gridY * CELL_SIZE,
+        path: [],
+        targetGridX: gridX,
+        targetGridY: gridY,
+        direction: 'down',
+        animFrame: 1,
+        isMoving: false
       }
     })
     setCharacterPositions(positions)
@@ -81,35 +116,145 @@ function App() {
     }
   }
 
+  const bfs = (startX: number, startY: number, endX: number, endY: number, occupied: Set<string>): {x: number, y: number}[] => {
+    const queue: {x: number, y: number, path: {x: number, y: number}[]}[] = [{x: startX, y: startY, path: []}]
+    const visited = new Set<string>([`${startX},${startY}`])
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      
+      if (current.x === endX && current.y === endY) {
+        return current.path
+      }
+      
+      const neighbors = [
+        {x: current.x, y: current.y - 1},
+        {x: current.x - 1, y: current.y},
+        {x: current.x + 1, y: current.y},
+        {x: current.x, y: current.y + 1}
+      ]
+      
+      for (const next of neighbors) {
+        const key = `${next.x},${next.y}`
+        if (next.x >= 1 && next.x < GRID_COLS - 1 &&
+            next.y >= 1 && next.y < GRID_ROWS - 1 &&
+            !visited.has(key) &&
+            !occupied.has(key)) {
+          visited.add(key)
+          queue.push({
+            x: next.x,
+            y: next.y,
+            path: [...current.path, next]
+          })
+        }
+      }
+    }
+    
+    return []
+  }
+
   const updateCharacterPositions = () => {
     if (!trajectory) return
 
-    setCharacterPositions(prev => {
-      const newPositions = { ...prev }
+    const now = Date.now()
+    const shouldMove = now - lastMoveTimeRef.current > 250
+    const shouldAnimFrame = now - lastAnimFrameTimeRef.current > 150
+
+    if (shouldMove) {
+      lastMoveTimeRef.current = now
       
-      trajectory.characters.forEach(char => {
-        const pos = newPositions[char.id]
-        if (!pos) return
-
-        if (Math.random() < 0.02) {
-          const townHallBounds = { minX: 50, maxX: 750, minY: 50, maxY: 450 }
-          pos.targetX = townHallBounds.minX + Math.random() * (townHallBounds.maxX - townHallBounds.minX)
-          pos.targetY = townHallBounds.minY + Math.random() * (townHallBounds.maxY - townHallBounds.minY)
-        }
-
-        const dx = pos.targetX - pos.x
-        const dy = pos.targetY - pos.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-
-        if (distance > 1) {
-          const speed = 0.5
-          pos.x += (dx / distance) * speed
-          pos.y += (dy / distance) * speed
-        }
+      setCharacterPositions(prev => {
+        const newPositions = { ...prev }
+        const occupiedCells = new Set<string>()
+        
+        Object.values(newPositions).forEach(pos => {
+          occupiedCells.add(`${pos.gridX},${pos.gridY}`)
+        })
+        
+        trajectory.characters.forEach(char => {
+          const pos = newPositions[char.id]
+          if (!pos) return
+          
+          if (pos.path.length === 0) {
+            if (Math.random() < 0.3) {
+              const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
+              const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
+              
+              occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
+              const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
+              occupiedCells.add(`${pos.gridX},${pos.gridY}`)
+              
+              if (path.length > 0) {
+                pos.path = path
+                pos.targetGridX = targetX
+                pos.targetGridY = targetY
+                pos.isMoving = true
+              }
+            }
+          } else {
+            const nextCell = pos.path[0]
+            const nextKey = `${nextCell.x},${nextCell.y}`
+            
+            occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
+            
+            if (!occupiedCells.has(nextKey)) {
+              const dx = nextCell.x - pos.gridX
+              const dy = nextCell.y - pos.gridY
+              
+              if (dy < 0) pos.direction = 'up'
+              else if (dy > 0) pos.direction = 'down'
+              else if (dx < 0) pos.direction = 'left'
+              else if (dx > 0) pos.direction = 'right'
+              
+              pos.gridX = nextCell.x
+              pos.gridY = nextCell.y
+              pos.pixelX = 50 + pos.gridX * CELL_SIZE
+              pos.pixelY = 50 + pos.gridY * CELL_SIZE
+              pos.path.shift()
+              
+              if (pos.path.length === 0) {
+                pos.isMoving = false
+                pos.animFrame = 1
+              }
+            } else {
+              occupiedCells.delete(`${nextCell.x},${nextCell.y}`)
+              const newPath = bfs(pos.gridX, pos.gridY, pos.targetGridX, pos.targetGridY, occupiedCells)
+              occupiedCells.add(`${nextCell.x},${nextCell.y}`)
+              pos.path = newPath
+              if (newPath.length === 0) {
+                pos.isMoving = false
+                pos.animFrame = 1
+              }
+            }
+            
+            occupiedCells.add(`${pos.gridX},${pos.gridY}`)
+          }
+        })
+        
+        return newPositions
       })
-
-      return newPositions
-    })
+    }
+    
+    if (shouldAnimFrame) {
+      lastAnimFrameTimeRef.current = now
+      
+      setCharacterPositions(prev => {
+        const newPositions = { ...prev }
+        
+        trajectory.characters.forEach(char => {
+          const pos = newPositions[char.id]
+          if (!pos) return
+          
+          if (pos.isMoving) {
+            pos.animFrame = (pos.animFrame + 1) % 3
+          } else {
+            pos.animFrame = 1
+          }
+        })
+        
+        return newPositions
+      })
+    }
   }
 
   useEffect(() => {
@@ -165,6 +310,16 @@ function App() {
 
   const currentSpeech = trajectory?.speeches[currentSpeechIndex]
   const currentCharacter = trajectory?.characters.find(c => c.id === currentSpeech?.character_id)
+
+  const getDirectionRow = (direction: string): number => {
+    switch (direction) {
+      case 'down': return 0
+      case 'left': return 1
+      case 'right': return 2
+      case 'up': return 3
+      default: return 0
+    }
+  }
 
   if (!trajectory) {
     return (
@@ -237,26 +392,36 @@ function App() {
               if (!pos) return null
 
               const isSpeaking = currentSpeech?.character_id === char.id
+              const directionRow = getDirectionRow(pos.direction)
+              const frameCol = pos.animFrame
 
               return (
                 <div
                   key={char.id}
-                  className="absolute transition-all duration-100"
+                  className="absolute"
                   style={{
-                    left: `${pos.x}px`,
-                    top: `${pos.y}px`,
+                    left: `${pos.pixelX}px`,
+                    top: `${pos.pixelY}px`,
+                    width: `${SPRITE_FRAME_WIDTH}px`,
+                    height: `${SPRITE_FRAME_HEIGHT}px`,
                     transform: 'translate(-50%, -50%)'
                   }}
                 >
                   <div className="relative">
-                    <img
-                      src={`/characters/${char.sprite}`}
-                      alt={char.name}
-                      className={`w-12 h-12 ${isSpeaking ? 'ring-4 ring-yellow-400' : ''}`}
-                      style={{ imageRendering: 'pixelated' }}
+                    <div
+                      style={{
+                        width: `${SPRITE_FRAME_WIDTH}px`,
+                        height: `${SPRITE_FRAME_HEIGHT}px`,
+                        backgroundImage: `url(/characters/${char.sprite})`,
+                        backgroundPosition: `-${frameCol * SPRITE_FRAME_WIDTH}px -${directionRow * SPRITE_FRAME_HEIGHT}px`,
+                        backgroundRepeat: 'no-repeat',
+                        imageRendering: 'pixelated',
+                        border: isSpeaking ? '2px solid #FBBF24' : 'none',
+                        borderRadius: '4px'
+                      }}
                     />
                     {isSpeaking && currentSpeech && (
-                      <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-white text-black px-3 py-1 rounded-full text-2xl whitespace-nowrap shadow-lg">
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 rounded-full text-base whitespace-nowrap shadow-lg">
                         {currentSpeech.emoji_summary}
                       </div>
                     )}
@@ -272,11 +437,16 @@ function App() {
           {currentSpeech && currentCharacter && !showFinalState && (
             <div className="bg-gray-800 p-6 border-t border-gray-700">
               <div className="flex items-start gap-4">
-                <img
-                  src={`/characters/${currentCharacter.sprite}`}
-                  alt={currentCharacter.name}
-                  className="w-16 h-16"
-                  style={{ imageRendering: 'pixelated' }}
+                <div
+                  style={{
+                    width: `${SPRITE_FRAME_WIDTH * 2}px`,
+                    height: `${SPRITE_FRAME_HEIGHT * 2}px`,
+                    backgroundImage: `url(/characters/${currentCharacter.sprite})`,
+                    backgroundPosition: `-${SPRITE_FRAME_WIDTH}px 0px`,
+                    backgroundSize: `${SPRITE_FRAME_WIDTH * 3 * 2}px ${SPRITE_FRAME_HEIGHT * 4 * 2}px`,
+                    backgroundRepeat: 'no-repeat',
+                    imageRendering: 'pixelated'
+                  }}
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
