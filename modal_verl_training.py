@@ -234,6 +234,7 @@ def run_verl_training(
         f"actor_rollout_ref.rollout.multi_turn.max_assistant_turns=6",
         f"actor_rollout_ref.model.path={model_name}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4",
+        f"critic.ppo_micro_batch_size_per_gpu=4",
         f"data.train_files={dataset_file}",
         f"trainer.total_training_steps={num_episodes}",
         f"trainer.default_local_dir={output_dir}",
