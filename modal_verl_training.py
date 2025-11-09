@@ -43,6 +43,7 @@ verl_image = (
         "httpx==0.25.2",
         "pyyaml==6.0.1",
         "hydra-core==1.3.2",
+        "trl==0.7.4",
         "sglang",
     )
     .run_commands(
@@ -231,10 +232,12 @@ def run_verl_training(
         f"actor_rollout_ref.rollout.multi_turn.max_assistant_turns=6",
         f"actor_rollout_ref.model.path={model_name}",
         f"actor_rollout_ref.model.trust_remote_code=true",
+        f"actor_rollout_ref.model.attn_implementation=eager",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={batch_size}",
         f"critic.model.path={model_name}",
         f"critic.model.trust_remote_code=true",
+        f"critic.model.attn_implementation=eager",
         f"critic.ppo_micro_batch_size_per_gpu=4",
         f"critic.ppo_mini_batch_size={batch_size}",
         f"data.train_files={dataset_file}",
