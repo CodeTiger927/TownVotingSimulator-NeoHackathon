@@ -189,7 +189,15 @@ function App() {
           occupiedCells.add(`${pos.gridX},${pos.gridY}`)
         })
 
-        trajectory.characters.forEach(char => {
+        const sortedCharacters = [...trajectory.characters].sort((a, b) => {
+          const aIsSpeaker = a.id === lecternOccupiedByRef.current
+          const bIsSpeaker = b.id === lecternOccupiedByRef.current
+          if (aIsSpeaker && !bIsSpeaker) return -1
+          if (!aIsSpeaker && bIsSpeaker) return 1
+          return 0
+        })
+
+        sortedCharacters.forEach(char => {
           const pos = newPositions[char.id]
           if (!pos) return
 
