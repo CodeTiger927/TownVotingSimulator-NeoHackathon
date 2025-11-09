@@ -47,6 +47,7 @@ verl_image = (
         "sglang",
     )
     .run_commands(
+        "pip install wheel",
         "pip install flash-attn --no-build-isolation",
         "pip install git+https://github.com/volcengine/verl.git@main",
     )
