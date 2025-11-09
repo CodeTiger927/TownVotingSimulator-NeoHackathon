@@ -120,63 +120,42 @@ def strip_think_tags(text: str) -> str:
 
 
 async def generate_emoji_summary(message: str, topic: str = "") -> str:
-    """Generate a short emoji summary of a message using the LLM or simple heuristics in mock mode."""
+    """Generate a short emoji summary of a message using heuristics."""
+    import random
     
-    if not MODAL_INFERENCE_URL or "[Mock response]" in message:
-        import random
-        topic_emojis = {
-            "immigration": ["🌍", "🛂", "🏠", "👨‍👩‍👧‍👦"],
-            "budget": ["💰", "💵", "📊", "🏦"],
-            "security": ["🚔", "🔒", "🛡️", "👮"],
-            "education": ["📚", "🎓", "🏫", "👨‍🏫"],
-            "healthcare": ["🏥", "💊", "🩺", "👨‍⚕️"],
-            "environment": ["🌱", "♻️", "🌍", "🌳"],
-            "economy": ["📈", "💼", "🏭", "💹"]
-        }
-        
-        positive = ["👍", "✅", "😊", "💪"]
-        negative = ["👎", "❌", "😟", "⚠️"]
-        neutral = ["🤔", "💭", "📝", "💬"]
-        
-        selected_emojis = []
-        message_lower = message.lower() + " " + topic.lower()
-        
-        for key, emojis in topic_emojis.items():
-            if key in message_lower:
-                selected_emojis.append(random.choice(emojis))
-                break
-        
-        if any(word in message_lower for word in ["support", "agree", "good", "yes", "positive", "favor"]):
-            selected_emojis.append(random.choice(positive))
-        elif any(word in message_lower for word in ["oppose", "disagree", "bad", "no", "negative", "against"]):
-            selected_emojis.append(random.choice(negative))
-        else:
-            selected_emojis.append(random.choice(neutral))
-        
-        if not selected_emojis:
-            selected_emojis = [random.choice(neutral), "💬"]
-        
-        return "".join(selected_emojis[:3])
+    topic_emojis = {
+        "immigration": ["🌍", "🛂", "🏠", "👨‍👩‍👧‍👦"],
+        "budget": ["💰", "💵", "📊", "🏦"],
+        "security": ["🚔", "🔒", "🛡️", "👮"],
+        "education": ["📚", "🎓", "🏫", "👨‍🏫"],
+        "healthcare": ["🏥", "💊", "🩺", "👨‍⚕️"],
+        "environment": ["🌱", "♻️", "🌍", "🌳"],
+        "economy": ["📈", "💼", "🏭", "💹"]
+    }
     
-    prompt = f"""Given the meeting topic '{topic}' and this utterance, return 1-3 emojis capturing the domain and sentiment (e.g., policy area + 👍/👎).
-Only output emojis, nothing else.
-
-Message: {message[:200]}
-
-Emojis:"""
+    positive = ["👍", "✅", "😊", "💪"]
+    negative = ["👎", "❌", "😟", "⚠️"]
+    neutral = ["🤔", "💭", "📝", "💬"]
     
-    try:
-        system_prompt = "You are a helpful assistant that summarizes text with emojis."
-        response = await call_llm(system_prompt, [{"role": "user", "content": prompt}], temperature=0.3, max_tokens=20)
-        emojis = response.strip()
-        import re
-        emojis = re.sub(r'[^\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]', '', emojis)
-        if len(emojis) > 20:
-            emojis = emojis[:20]
-        return emojis if emojis else "💬"
-    except Exception as e:
-        print(f"Error generating emoji summary: {e}")
-        return "💬"
+    selected_emojis = []
+    message_lower = message.lower() + " " + topic.lower()
+    
+    for key, emojis in topic_emojis.items():
+        if key in message_lower:
+            selected_emojis.append(random.choice(emojis))
+            break
+    
+    if any(word in message_lower for word in ["support", "agree", "good", "yes", "positive", "favor", "right", "should", "must"]):
+        selected_emojis.append(random.choice(positive))
+    elif any(word in message_lower for word in ["oppose", "disagree", "bad", "no", "negative", "against", "wrong", "shouldn't"]):
+        selected_emojis.append(random.choice(negative))
+    else:
+        selected_emojis.append(random.choice(neutral))
+    
+    if not selected_emojis:
+        selected_emojis = [random.choice(neutral), "💬"]
+    
+    return "".join(selected_emojis[:3])
 
 
 async def update_agent_summary(agent_key: str):
@@ -370,7 +349,7 @@ class TownHallRequest(BaseModel):
     num_rounds: int = 1
 
 
-async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 150, response_format: dict = None) -> str:
+async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
     """
     Call the Modal inference endpoint with the given system prompt and messages.
     Falls back to mock responses if Modal is not configured.
@@ -426,7 +405,40 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 
                 result = await resp.json()
                 response = result["choices"][0]["message"]["content"]
-                return strip_think_tags(response)
+                print(f"[DEBUG] RAW LLM RESPONSE ({len(response)} chars):")
+                print(f"[DEBUG] {response}")
+                print(f"[DEBUG] --- END RAW RESPONSE ---")
+                stripped = strip_think_tags(response)
+                print(f"[DEBUG] AFTER strip_think_tags ({len(stripped)} chars): {stripped[:200]}")
+                
+                if not stripped or len(stripped.strip()) == 0:
+                    print(f"[DEBUG] Empty response after strip_think_tags, using fallback prompt")
+                    fallback_system = "Output only the final answer in 1-3 sentences. Do not include <think> or hidden thoughts."
+                    fallback_messages = [{"role": "system", "content": fallback_system}] + messages
+                    
+                    async with session.post(
+                        f"{MODAL_INFERENCE_URL}/v1/chat/completions",
+                        json={
+                            "messages": fallback_messages,
+                            "model": "Qwen/Qwen3-8B-FP8",
+                            "stream": False,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                            "top_p": 1.0
+                        }
+                    ) as fallback_resp:
+                        if fallback_resp.status != 200:
+                            print(f"[DEBUG] Fallback request failed with status {fallback_resp.status}")
+                            return "[Fallback failed] I understand your message."
+                        
+                        fallback_result = await fallback_resp.json()
+                        fallback_response = fallback_result["choices"][0]["message"]["content"]
+                        print(f"[DEBUG] FALLBACK RAW RESPONSE ({len(fallback_response)} chars): {fallback_response[:200]}")
+                        fallback_stripped = strip_think_tags(fallback_response)
+                        print(f"[DEBUG] FALLBACK AFTER strip_think_tags ({len(fallback_stripped)} chars): {fallback_stripped[:200]}")
+                        return fallback_stripped if fallback_stripped else "[Empty fallback] I understand your message."
+                
+                return stripped
     
     except aiohttp.ClientError as e:
         error_msg = f"Network error: {str(e)}"
@@ -606,9 +618,7 @@ async def town_hall_conversation(request: TownHallRequest):
     politician_2_config = AGENT_CONFIGS["politician_2"]
     
     p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)
-
-<thinking></thinking>"""
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
     print(f"[TownHall] Opening statement: {politician_1_config['full_name']} starting... ({datetime.now().strftime('%H:%M:%S')})")
     start = datetime.now()
     p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
@@ -616,9 +626,7 @@ You are giving your opening statement to the voters. What do you want to say? (R
     print(f"[TownHall] Opening statement: {politician_1_config['full_name']} completed in {elapsed:.1f}s")
 
     p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)
-
-<thinking></thinking>"""
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
     print(f"[TownHall] Opening statement: {politician_2_config['full_name']} starting... ({datetime.now().strftime('%H:%M:%S')})")
     start = datetime.now()
     p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
@@ -719,7 +727,7 @@ You are giving your opening statement to the voters. What do you want to say? (R
             for msg in town_hall_history:
                 conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
             
-            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)\n\n<thinking></thinking>"
+            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
             
             # Build messages for LLM with full conversation history
             conversation_messages = []
