@@ -166,83 +166,7 @@ def run_verl_training(
         for sample in dataset_samples:
             f.write(json.dumps(sample) + "\n")
     
-    rollout_config = {
-        "actor_rollout_ref": {
-            "rollout": {
-                "name": "sglang",
-                "mode": "sync",
-                "multi_turn": True,
-                "multi_turn_interaction_config_path": str(config_dir / "interaction.yaml"),
-                "log_prob_micro_batch_size": 4,
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "max_new_tokens": 256,
-            }
-        }
-    }
-    
-    with open(config_dir / "rollout.yaml", "w") as f:
-        yaml.dump(rollout_config, f)
-    
-    train_config = {
-        "model": {
-            "model_name_or_path": model_name,
-            "trust_remote_code": True,
-        },
-        "dataset": {
-            "path": str(dataset_file),
-            "split": "train",
-        },
-        "trainer": {
-            "total_epochs": 1,
-            "total_training_steps": num_episodes,
-            "save_freq": max(num_episodes // 4, 1),
-            "output_dir": str(output_dir),
-            "devices": 8,
-            "strategy": "ddp",
-            "num_nodes": 1,
-        },
-        "algorithm": {
-            "kl_ctrl": {
-                "kl_coef": 0.05,
-            },
-            "adv_estimator": {
-                "gamma": 0.99,
-                "lam": 0.95,
-            },
-        },
-        "ppo": {
-            "num_mini_batches": 2,
-            "ppo_mini_batch_size": batch_size,
-            "ppo_epochs": 2,
-            "clip_range": 0.2,
-            "clip_range_value": 0.2,
-            "learning_rate": learning_rate,
-        },
-        "actor_rollout_ref": {
-            "rollout": {
-                "name": "sglang",
-                "mode": "sync",
-                "multi_turn": True,
-                "multi_turn_interaction_config_path": str(config_dir / "interaction.yaml"),
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "top_k": 50,
-                "repetition_penalty": 1.0,
-            }
-        },
-        "ray_kwargs": {
-            "ray_init": {
-                "num_cpus": 32,
-                "num_gpus": 8,
-            }
-        },
-    }
-    
-    with open(config_dir / "train_ppo.yaml", "w") as f:
-        yaml.dump(train_config, f)
-    
-    print(f"Created config files in {config_dir}")
+    print(f"Created interaction config and dataset in {config_dir}")
     
     print("\n" + "="*80)
     print("veRL Training Configuration Summary")
@@ -302,16 +226,14 @@ def run_verl_training(
     
     training_args = [
         sys.executable, "-m", "verl.trainer.main_ppo",
-        "--config-path", str(config_dir),
-        "--config-name", "train_ppo",
+        f"actor_rollout_ref.rollout.name=sglang",
+        f"actor_rollout_ref.rollout.mode=sync",
+        f"actor_rollout_ref.rollout.multi_turn=true",
         f"actor_rollout_ref.rollout.multi_turn_interaction_config_path={config_dir/'interaction.yaml'}",
         f"model.model_name_or_path={model_name}",
         f"dataset.path={dataset_file}",
         f"trainer.total_training_steps={num_episodes}",
         f"trainer.output_dir={output_dir}",
-        f"trainer.devices={gpu_count}",
-        "trainer.strategy=ddp",
-        "trainer.num_nodes=1",
     ]
     
     print(f"Running command: {' '.join(training_args)}")
