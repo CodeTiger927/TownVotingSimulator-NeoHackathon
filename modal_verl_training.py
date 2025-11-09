@@ -44,6 +44,7 @@ verl_image = (
         "pyyaml==6.0.1",
         "hydra-core==1.3.2",
         "trl==0.9.6",
+        "pybase64",
         "sglang",
     )
     .run_commands(
