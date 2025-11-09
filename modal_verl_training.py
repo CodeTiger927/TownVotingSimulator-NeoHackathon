@@ -85,6 +85,7 @@ def backend_asgi():
         "/data": backend_volume,
         "/root/.cache/huggingface": hf_cache_volume,
     },
+    env={"BNB_CUDA_VERSION": "121"},
 )
 def run_verl_training(
     backend_url: str,
