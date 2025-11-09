@@ -228,6 +228,7 @@ def run_verl_training(
         sys.executable, "-m", "verl.trainer.main_ppo",
         f"actor_rollout_ref.rollout.name=sglang",
         f"actor_rollout_ref.rollout.mode=sync",
+        f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4",
         f"actor_rollout_ref.rollout.multi_turn.enable=true",
         f"actor_rollout_ref.rollout.multi_turn.interaction_config_path={config_dir/'interaction.yaml'}",
         f"actor_rollout_ref.rollout.multi_turn.max_assistant_turns=6",
