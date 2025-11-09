@@ -218,3 +218,7 @@ MIT
 ## Credits
 
 Built for NeoHackathon using Modal, FastAPI, and Qwen3-8B
+
+## Testing Note
+
+This is a test change to verify PR creation workflow.
