@@ -234,6 +234,7 @@ def run_verl_training(
         f"critic.ppo_micro_batch_size_per_gpu=4",
         f"data.train_files={dataset_file}",
         f"data.val_files={dataset_file}",
+        f"data.train_batch_size={max(num_episodes, 5)}",
         f"trainer.total_training_steps={num_episodes}",
         f"trainer.default_local_dir={output_dir}",
         f"trainer.val_before_train=false",
