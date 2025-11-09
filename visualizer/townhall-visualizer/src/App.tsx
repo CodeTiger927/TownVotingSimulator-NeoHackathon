@@ -67,6 +67,11 @@ const AUDIENCE_LECTERN = { gridX: 10, gridY: 5, speakerSpot: { x: 10, y: 6 } }
 const STAGE_ROWS = [1, 2, 3]
 const STAGE_MARGIN_COLS = 2
 const AUDIENCE_SECTION = { startY: 7, endY: 11 }
+const AUDIENCE_MIN_Y = Math.max(AUDIENCE_SECTION.startY, AUDIENCE_LECTERN.speakerSpot.y + 1)
+
+const CENTER_ZONE = { startX: AUDIENCE_LECTERN.gridX - 2, endX: AUDIENCE_LECTERN.gridX + 2 }
+const LEFT_ZONE = { startX: STAGE_MARGIN_COLS, endX: CENTER_ZONE.startX - 1 }
+const RIGHT_ZONE = { startX: CENTER_ZONE.endX + 1, endX: GRID_COLS - 1 - STAGE_MARGIN_COLS }
 
 const getPoliticianLectern = (charId: string) => {
   if (charId === 'politician_1') return POLITICIAN_LECTERNS[0]
@@ -80,8 +85,21 @@ const getSpeakingSpot = (char: Character) => {
   return AUDIENCE_LECTERN.speakerSpot
 }
 
-const findAvailablePositionNear = (targetX: number, targetY: number, radius: number, occupiedCells: Set<string>, currentX: number, currentY: number): {x: number, y: number} | null => {
+const findAvailablePositionNear = (
+  targetX: number, 
+  targetY: number, 
+  radius: number, 
+  occupiedCells: Set<string>, 
+  currentX: number, 
+  currentY: number,
+  bounds?: { minX: number, maxX: number, minY: number, maxY: number }
+): {x: number, y: number} | null => {
   const candidates: {x: number, y: number, distance: number}[] = []
+  
+  const minX = bounds?.minX ?? 1
+  const maxX = bounds?.maxX ?? GRID_COLS - 2
+  const minY = bounds?.minY ?? 1
+  const maxY = bounds?.maxY ?? GRID_ROWS - 2
   
   for (let dx = -radius; dx <= radius; dx++) {
     for (let dy = -radius; dy <= radius; dy++) {
@@ -89,7 +107,7 @@ const findAvailablePositionNear = (targetX: number, targetY: number, radius: num
       const y = targetY + dy
       const key = `${x},${y}`
       
-      if (x >= 1 && x < GRID_COLS - 1 && y >= 1 && y < GRID_ROWS - 1 && !occupiedCells.has(key)) {
+      if (x >= minX && x <= maxX && y >= minY && y <= maxY && !occupiedCells.has(key)) {
         const distance = Math.abs(x - currentX) + Math.abs(y - currentY)
         candidates.push({x, y, distance})
       }
@@ -287,41 +305,88 @@ function App() {
             
             if (!isPolitician && !isCurrentSpeaker) {
               let swarmTarget: {x: number, y: number} | null = null
+              let swarmZone: { startX: number, endX: number } | null = null
               
               if (speakerStateRef.current === 'speaking' || speakerStateRef.current === 'moving_to_lectern') {
                 const currentSpeaker = trajectory.characters.find(c => c.id === lecternOccupiedByRef.current)
                 if (currentSpeaker) {
                   const speakerPoliticianLectern = getPoliticianLectern(currentSpeaker.id)
                   if (speakerPoliticianLectern) {
-                    swarmTarget = {x: speakerPoliticianLectern.gridX, y: speakerPoliticianLectern.gridY}
+                    if (currentSpeaker.id === 'politician_1') {
+                      swarmZone = LEFT_ZONE
+                      swarmTarget = {
+                        x: Math.max(LEFT_ZONE.startX, Math.min(LEFT_ZONE.endX, speakerPoliticianLectern.gridX)),
+                        y: AUDIENCE_MIN_Y
+                      }
+                    } else if (currentSpeaker.id === 'politician_2') {
+                      swarmZone = RIGHT_ZONE
+                      swarmTarget = {
+                        x: Math.max(RIGHT_ZONE.startX, Math.min(RIGHT_ZONE.endX, speakerPoliticianLectern.gridX)),
+                        y: AUDIENCE_MIN_Y
+                      }
+                    }
                   } else {
-                    swarmTarget = {x: AUDIENCE_LECTERN.gridX, y: AUDIENCE_LECTERN.gridY}
+                    swarmZone = CENTER_ZONE
+                    swarmTarget = {x: AUDIENCE_LECTERN.gridX, y: AUDIENCE_MIN_Y}
                   }
                 }
               }
               
-              if (swarmTarget && Math.random() < 0.4) {
+              if (swarmTarget && swarmZone && Math.random() < 0.4) {
                 occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
-                const availablePos = findAvailablePositionNear(swarmTarget.x, swarmTarget.y, 4, occupiedCells, pos.gridX, pos.gridY)
+                
+                const localOccupied = new Set(occupiedCells)
+                for (let x = 1; x < GRID_COLS - 1; x++) {
+                  for (let y = 1; y < AUDIENCE_MIN_Y; y++) {
+                    localOccupied.add(`${x},${y}`)
+                  }
+                }
+                
+                const availablePos = findAvailablePositionNear(
+                  swarmTarget.x, 
+                  swarmTarget.y, 
+                  4, 
+                  localOccupied, 
+                  pos.gridX, 
+                  pos.gridY,
+                  {
+                    minX: swarmZone.startX,
+                    maxX: swarmZone.endX,
+                    minY: AUDIENCE_MIN_Y,
+                    maxY: AUDIENCE_SECTION.endY
+                  }
+                )
                 
                 if (availablePos) {
-                  const path = bfs(pos.gridX, pos.gridY, availablePos.x, availablePos.y, occupiedCells)
+                  occupiedCells.add(`${availablePos.x},${availablePos.y}`)
+                  
+                  const path = bfs(pos.gridX, pos.gridY, availablePos.x, availablePos.y, localOccupied)
                   if (path.length > 0) {
                     pos.path = path
                     pos.targetGridX = availablePos.x
                     pos.targetGridY = availablePos.y
                     pos.isMoving = true
+                  } else {
+                    occupiedCells.delete(`${availablePos.x},${availablePos.y}`)
                   }
                 }
                 
                 occupiedCells.add(`${pos.gridX},${pos.gridY}`)
               } else if (speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.2) {
+                occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
+                
+                const localOccupied = new Set(occupiedCells)
+                for (let x = 1; x < GRID_COLS - 1; x++) {
+                  for (let y = 1; y < AUDIENCE_MIN_Y; y++) {
+                    localOccupied.add(`${x},${y}`)
+                  }
+                }
+                
                 const cols = GRID_COLS - 4
                 const targetX = 2 + Math.floor(Math.random() * cols)
-                const targetY = AUDIENCE_SECTION.startY + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_SECTION.startY + 1))
+                const targetY = AUDIENCE_MIN_Y + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_MIN_Y + 1))
 
-                occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
-                const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
+                const path = bfs(pos.gridX, pos.gridY, targetX, targetY, localOccupied)
                 occupiedCells.add(`${pos.gridX},${pos.gridY}`)
 
                 if (path.length > 0) {
