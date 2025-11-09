@@ -53,7 +53,6 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [showFinalState, setShowFinalState] = useState(false)
   const [characterPositions, setCharacterPositions] = useState<Record<string, CharacterPosition>>({})
-  const [fileInput, setFileInput] = useState<File | null>(null)
   const animationFrameRef = useRef<number>()
 
   const loadTrajectory = async (file: File) => {
@@ -78,7 +77,6 @@ function App() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setFileInput(file)
       loadTrajectory(file)
     }
   }
