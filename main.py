@@ -18,6 +18,7 @@ import aiohttp
 from dotenv import load_dotenv
 
 from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
+from memory_manager import MemoryDatabase, canonicalize_content
 
 load_dotenv()
 
@@ -102,6 +103,7 @@ def initialize_agents():
             memory["summary"] = f"Core values: {agent_config['name']} with established personality and policy preferences."
             memory["llm_decision"] = None
             memory["last_llm_raw_response"] = None
+            memory["memory_db"] = MemoryDatabase()
             agent_memories[agent_key] = memory
 
 initialize_agents()
@@ -434,7 +436,7 @@ async def talk_to_agent(request: TalkRequest):
     """
     Have a one-on-one conversation with a specific agent.
     The agent will respond based on their personality and current memory.
-    Updates persuasion score based on message content.
+    Uses RAG to retrieve relevant memories.
     """
     if request.agent_name not in AGENT_CONFIGS:
         raise HTTPException(status_code=404, detail=f"Agent '{request.agent_name}' not found")
@@ -444,16 +446,26 @@ async def talk_to_agent(request: TalkRequest):
     
     agent_config = AGENT_CONFIGS[request.agent_name]
     agent_memory = agent_memories[request.agent_name]
+    memory_db = agent_memory["memory_db"]
+    
+    relevant_memories = memory_db.get_relevant_memories(request.message, k=8)
+    memory_context = memory_db.format_memories_for_prompt(relevant_memories)
     
     conversation_messages = []
-    for msg in agent_memory["conversation_history"][-10:]:
-        conversation_messages.append({"role": msg["role"], "content": msg["content"]})
+    
+    if memory_context:
+        conversation_messages.append({"role": "user", "content": memory_context})
+    
+    # Add recent conversation history (last 5 messages)
+    for msg in agent_memory["conversation_history"][-5:]:
+        role = "user" if msg.get("role") in ["user", "townhall", "broadcast"] else "assistant"
+        conversation_messages.append({"role": role, "content": msg.get("content", "")})
     
     conversation_messages.append({"role": "user", "content": request.message})
     
     response = await call_llm(agent_config["system_prompt"], conversation_messages)
     
-    
+    # Update conversation history
     agent_memory["conversation_history"].append({
         "role": "user",
         "content": request.message,
@@ -466,12 +478,24 @@ async def talk_to_agent(request: TalkRequest):
         "timestamp": datetime.now().isoformat()
     })
     
+    memory_db.add_memory(
+        content=request.message,
+        kind="talk_user",
+        politician_id=request.politician_id
+    )
+    memory_db.add_memory(
+        content=response,
+        kind="talk_assistant",
+        politician_id=request.politician_id
+    )
+    
     await update_agent_summary(request.agent_name)
     
     return {
         "agent": agent_config["full_name"],
         "response": response,
-        "memory_updated": True
+        "memory_updated": True,
+        "rag_memories_used": len(relevant_memories)
     }
 
 
@@ -480,7 +504,7 @@ async def broadcast_to_all(request: BroadcastRequest):
     """
     Broadcast a message to all agents. Each agent will update their memory
     based on the message and their personality.
-    Updates persuasion scores based on message content.
+    Stores broadcast in RAG memory database.
     """
     if request.politician_id not in politician_policies:
         raise HTTPException(status_code=404, detail=f"Politician '{request.politician_id}' not found")
@@ -489,6 +513,7 @@ async def broadcast_to_all(request: BroadcastRequest):
     
     for agent_key, agent_config in AGENT_CONFIGS.items():
         agent_memory = agent_memories[agent_key]
+        memory_db = agent_memory["memory_db"]
         
         process_prompt = f"""A politician just made this announcement about {request.topic}:
 
@@ -511,6 +536,18 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
             "content": response,
             "timestamp": datetime.now().isoformat()
         })
+        
+        broadcast_content = canonicalize_content(
+            kind="broadcast",
+            content=request.message,
+            topic=request.topic
+        )
+        memory_db.add_memory(
+            content=broadcast_content,
+            kind="broadcast",
+            topic=request.topic,
+            politician_id=request.politician_id
+        )
         
         await update_agent_summary(agent_key)
         
@@ -570,7 +607,8 @@ You are giving your opening statement to the voters. What do you want to say? (R
     # Update all agent memories with politicians' opening statements
     for agent_key in all_agent_keys:
         agent_memory = agent_memories[agent_key]
-        # Villagers' memories - record both politicians' opening statements
+        memory_db = agent_memory["memory_db"]
+        
         agent_memory["conversation_history"].append({
             "role": "townhall",
             "content": p1_message,
@@ -589,6 +627,13 @@ You are giving your opening statement to the voters. What do you want to say? (R
             "topic": request.topic,
             "timestamp": datetime.now().isoformat()
         })
+        
+        opening_content = f"[townhall:{request.topic}] {politician_1_config['full_name']}: {p1_message} | {politician_2_config['full_name']}: {p2_message}"
+        memory_db.add_memory(
+            content=opening_content,
+            kind="townhall",
+            topic=request.topic
+        )
     
     await update_agent_summary("politician_1")
     await update_agent_summary("politician_2")
@@ -615,6 +660,15 @@ You are giving your opening statement to the voters. What do you want to say? (R
         for agent_key in round_agent_keys:
             agent_config = AGENT_CONFIGS[agent_key]
             agent_memory = agent_memories[agent_key]
+            memory_db = agent_memory["memory_db"]
+            
+            retrieval_query = f"[townhall:{request.topic}] "
+            recent_history = town_hall_history[-10:]
+            for msg in recent_history:
+                retrieval_query += f"{msg['speaker_name']}: {msg['content'][:100]}... "
+            
+            relevant_memories = memory_db.get_relevant_memories(retrieval_query, k=8)
+            memory_context = memory_db.format_memories_for_prompt(relevant_memories)
             
             # Build conversation context from town hall history
             conversation_context = f"This is a town hall meeting about {request.topic}.\n\n"
@@ -627,6 +681,9 @@ You are giving your opening statement to the voters. What do you want to say? (R
             
             # Build messages for LLM with full conversation history
             conversation_messages = []
+            
+            if memory_context:
+                conversation_messages.append({"role": "user", "content": memory_context})
             
             # Add recent conversation history from agent's memory (last 5 messages)
             for msg in agent_memory["conversation_history"][-5:]:
@@ -652,9 +709,9 @@ You are giving your opening statement to the voters. What do you want to say? (R
             # Update all agents' memories with this new statement
             for other_agent_key in all_agent_keys:
                 other_agent_memory = agent_memories[other_agent_key]
+                other_memory_db = other_agent_memory["memory_db"]
                 
                 if other_agent_key == agent_key:
-                    # This is the speaker's own memory - add as assistant
                     other_agent_memory["conversation_history"].append({
                         "role": "assistant",
                         "content": response,
@@ -664,7 +721,6 @@ You are giving your opening statement to the voters. What do you want to say? (R
                         "timestamp": datetime.now().isoformat()
                     })
                 else:
-                    # This is another agent hearing this statement - add as townhall with speaker info
                     other_agent_memory["conversation_history"].append({
                         "role": "townhall",
                         "content": response,
@@ -674,6 +730,14 @@ You are giving your opening statement to the voters. What do you want to say? (R
                         "topic": request.topic,
                         "timestamp": datetime.now().isoformat()
                     })
+                
+                townhall_content = f"[townhall:{request.topic}] {agent_config['full_name']}: {response}"
+                other_memory_db.add_memory(
+                    content=townhall_content,
+                    kind="townhall",
+                    topic=request.topic,
+                    politician_id=agent_key if agent_key in ["politician_1", "politician_2"] else None
+                )
             
             await update_agent_summary(agent_key)
             
@@ -812,6 +876,43 @@ async def debug_agent(agent_name: str):
         "current_vote": agent_memory.get("voting_preference"),
         "memory_summary": agent_memory.get("summary", "No summary yet"),
         "conversation_count": len(agent_memory["conversation_history"]),
+    }
+
+
+@app.get("/debug/rag/{agent_name}")
+async def debug_rag_memories(agent_name: str, query: str = "immigration policy"):
+    """
+    Debug endpoint to inspect RAG memory retrieval for an agent.
+    Shows top-k relevant memories for a given query.
+    """
+    if agent_name not in AGENT_CONFIGS:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+    
+    agent_memory = agent_memories[agent_name]
+    memory_db = agent_memory["memory_db"]
+    
+    relevant_memories = memory_db.get_relevant_memories(query, k=8)
+    
+    memories_detail = []
+    for item, score in relevant_memories:
+        memories_detail.append({
+            "id": item.id,
+            "timestamp": item.timestamp,
+            "kind": item.kind,
+            "topic": item.topic,
+            "politician_id": item.politician_id,
+            "content": item.content[:200] + "..." if len(item.content) > 200 else item.content,
+            "importance": item.importance,
+            "relevance_score": round(score, 4)
+        })
+    
+    return {
+        "agent": AGENT_CONFIGS[agent_name]["full_name"],
+        "query": query,
+        "total_memories": len(memory_db.items),
+        "retrieved_memories": len(relevant_memories),
+        "memories": memories_detail,
+        "formatted_context": memory_db.format_memories_for_prompt(relevant_memories)
     }
 
 
