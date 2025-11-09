@@ -47,6 +47,7 @@ verl_image = (
         "pybase64",
         "pyzmq",
         "uvloop",
+        "fastapi",
         "sglang",
     )
     .run_commands(
