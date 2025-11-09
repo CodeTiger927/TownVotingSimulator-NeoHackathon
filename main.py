@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import aiohttp
 from dotenv import load_dotenv
+from anthropic import AsyncAnthropic
 
 from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
 
@@ -55,6 +56,8 @@ politician_policies: Dict[str, dict] = {
 }
 
 MODAL_INFERENCE_URL = os.getenv("MODAL_INFERENCE_URL", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 AGENT_POLICY_WEIGHTS = {
     "waitress": {
@@ -323,68 +326,39 @@ class TownHallRequest(BaseModel):
 
 async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
     """
-    Call the Modal inference endpoint with the given system prompt and messages.
-    Falls back to mock responses if Modal is not configured.
+    Call Claude through the Anthropic API with the given system prompt and messages.
+    Falls back to mock responses if API key is not configured.
     """
-    print("calling llm")
-    if not MODAL_INFERENCE_URL:
+    print("calling llm with Claude")
+    if not ANTHROPIC_API_KEY:
         return f"[Mock response] I understand your message. As an agent, I have my own views on this matter."
     
     try:
-        full_messages = [{"role": "system", "content": system_prompt}] + messages + [{"role": "assistant", "content": "<think>  </think>"}]
+        claude_messages = []
+        for msg in messages:
+            if msg.get("role") != "system":
+                claude_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
         
-        # Ensure URL doesn't have trailing slash
-        base_url = MODAL_INFERENCE_URL.rstrip('/')
-        endpoint = f"{base_url}/v1/chat/completions"
+        if response_format and response_format.get("type") == "json_object":
+            if claude_messages and claude_messages[-1]["role"] == "user":
+                claude_messages[-1]["content"] += "\n\nRespond with valid JSON only."
         
-        async with aiohttp.ClientSession() as session:
-            payload = {
-                "messages": full_messages,
-                "model": "Qwen/Qwen3-8B-FP8",
-                "stream": False,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "enable_thinking": False,
-                "top_p": 1.0
-            }
-            
-            if response_format:
-                payload["response_format"] = response_format
-            
-            async with session.post(
-                endpoint,
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            ) as resp:
-                if resp.status != 200:
-                    # Try to get error details
-                    error_text = await resp.text()
-                    error_detail = f"Modal inference failed: {resp.status}"
-                    try:
-                        error_json = await resp.json()
-                        if error_json:
-                            error_detail += f" - {error_json}"
-                    except:
-                        if error_text:
-                            error_detail += f" - {error_text[:200]}"
-                    
-                    print(f"ERROR: {error_detail}")
-                    print(f"Endpoint: {endpoint}")
-                    print(f"Payload keys: {list(payload.keys())}")
-                    
-                    # Return mock response instead of raising exception to allow simulation to continue
-                    return f"[Mock response due to error: {error_detail}] I understand your message."
-                
-                result = await resp.json()
-                response = result["choices"][0]["message"]["content"]
-                return strip_think_tags(response)
+        response = await anthropic_client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            messages=claude_messages
+        )
+        
+        response_text = response.content[0].text
+        return strip_think_tags(response_text)
     
-    except aiohttp.ClientError as e:
-        error_msg = f"Network error: {str(e)}"
-        print(f"ERROR: {error_msg}")
-        return f"[Mock response due to error: {error_msg}] I understand your message."
     except Exception as e:
-        error_msg = f"Unexpected error: {str(e)}"
+        error_msg = f"Anthropic API error: {str(e)}"
         print(f"ERROR: {error_msg}")
         return f"[Mock response due to error: {error_msg}] I understand your message."
 

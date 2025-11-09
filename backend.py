@@ -9,6 +9,7 @@ from typing import Dict, List, Literal
 import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
+from anthropic import Anthropic
 
 # ---------- Config ----------
 
@@ -19,11 +20,8 @@ BASE_DIR = Path(__file__).parent
 MEMORY_DIR = BASE_DIR / "memory"
 MEMORY_DIR.mkdir(exist_ok=True)
 
-# Point this to your Modal/vLLM OpenAI-compatible endpoint, e.g.
-# "https://your-modal-app.modal.run/v1/chat/completions"
-QWEN_API_URL = os.getenv("QWEN_API_URL")
-QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
-QWEN_MODEL_NAME = os.getenv("QWEN_MODEL_NAME", "Qwen3-8B-FP8")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 AGENT_DEFS: Dict[AgentId, Dict[str, str]] = {
     "waitress": {
@@ -289,27 +287,32 @@ def agent_system_prompt(agent_id: AgentId) -> str:
 
 
 def call_qwen_chat(messages, temperature: float = 0.7, max_tokens: int = 512) -> str:
-    if not QWEN_API_URL:
+    if not ANTHROPIC_API_KEY:
         raise RuntimeError(
-            "QWEN_API_URL is not set. Point this at your Modal/vLLM OpenAI-compatible chat endpoint."
+            "ANTHROPIC_API_KEY is not set. Please configure the Anthropic API key."
         )
 
-    headers = {"Content-Type": "application/json"}
-    if QWEN_API_KEY:
-        headers["Authorization"] = f"Bearer {QWEN_API_KEY}"
-
-    payload = {
-        "model": QWEN_MODEL_NAME,
-        "messages": messages,
-        "temperature": temperature,
-        "enable_thinking": False,
-        "max_tokens": max_tokens,
-    }
-
-    resp = requests.post(QWEN_API_URL, headers=headers, json=payload, timeout=60)
-    resp.raise_for_status()
-    data = resp.json()
-    return data["choices"][0]["message"]["content"]
+    system_prompt = ""
+    claude_messages = []
+    
+    for msg in messages:
+        if msg.get("role") == "system":
+            system_prompt = msg["content"]
+        else:
+            claude_messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+    
+    response = anthropic_client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=max_tokens,
+        temperature=temperature,
+        system=system_prompt,
+        messages=claude_messages
+    )
+    
+    return response.content[0].text
 
 
 # ---------- FastAPI app ----------
