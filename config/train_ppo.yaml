@@ -42,8 +42,16 @@ data:
   max_prompt_length: 512
   max_response_length: 256
 
-rollout:
-  temperature: 0.7
-  top_p: 0.9
-  top_k: 50
-  repetition_penalty: 1.0
+actor_rollout_ref:
+  rollout:
+    name: sglang
+    mode: sync
+    multi_turn: true
+    multi_turn_interaction_config_path: ./config/interaction.yaml
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 50
+    repetition_penalty: 1.0
+
+dataset:
+  path: ./datasets/debate_samples.jsonl
