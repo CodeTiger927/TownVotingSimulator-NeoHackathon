@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from anthropic import AsyncAnthropic
 
 from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
+import trajectories
 
 load_dotenv()
 
@@ -528,12 +529,18 @@ async def town_hall_conversation(request: TownHallRequest):
     Town hall style conversation where all agents (including politicians) participate
     in a progressive discussion. Each agent sees the full conversation history.
     """
+    # Generate conversation ID and track timing for trajectory
+    conversation_id = trajectories.generate_conversation_id()
+    start_time = datetime.now()
+    
     # Get all agent keys (including politicians)
     all_agent_keys = list(AGENT_CONFIGS.keys())
     
     # Build conversation history that will be shared across all agents
     town_hall_history = []
     all_responses = []
+    speeches = []  # For trajectory.json
+    sequence_counter = 0  # Track speech sequence
     
     # Round 1: Politicians give opening statements
     politician_1_config = AGENT_CONFIGS["politician_1"]
@@ -607,6 +614,31 @@ async def town_hall_conversation(request: TownHallRequest):
         "response": p2_message,
         "round": 1
     })
+    
+    # Track speeches for trajectory.json
+    p1_timestamp = datetime.now().isoformat()
+    speeches.append({
+        "round": 1,
+        "character_id": "politician_1",
+        "character_name": politician_1_config["full_name"],
+        "message": p1_message,
+        "emoji_summary": trajectories.generate_emoji_summary(p1_message),
+        "timestamp": p1_timestamp,
+        "sequence": sequence_counter
+    })
+    sequence_counter += 1
+    
+    p2_timestamp = datetime.now().isoformat()
+    speeches.append({
+        "round": 1,
+        "character_id": "politician_2",
+        "character_name": politician_2_config["full_name"],
+        "message": p2_message,
+        "emoji_summary": trajectories.generate_emoji_summary(p2_message),
+        "timestamp": p2_timestamp,
+        "sequence": sequence_counter
+    })
+    sequence_counter += 1
     
     # Subsequent rounds: All agents participate in randomized order
     for round_num in range(1, request.num_rounds + 1):
@@ -685,11 +717,104 @@ async def town_hall_conversation(request: TownHallRequest):
                 "response": response,
                 "round": round_num + 1
             })
+            
+            # Track speech for trajectory.json
+            speech_timestamp = datetime.now().isoformat()
+            speeches.append({
+                "round": round_num + 1,
+                "character_id": agent_key,
+                "character_name": agent_config["full_name"],
+                "message": response,
+                "emoji_summary": trajectories.generate_emoji_summary(response),
+                "timestamp": speech_timestamp,
+                "sequence": sequence_counter
+            })
+            sequence_counter += 1
+    
+    # Generate trajectory.json at the end
+    end_time = datetime.now()
+    duration_seconds = (end_time - start_time).total_seconds()
+    
+    # Build characters list for trajectory
+    characters = []
+    # Add politicians
+    characters.append({
+        "id": "politician_1",
+        "name": AGENT_CONFIGS["politician_1"]["full_name"],
+        "role": "Politician 1",
+        "sprite": "alex_politician1.png",
+        "initial_position": {"x": 100, "y": 100}
+    })
+    characters.append({
+        "id": "politician_2",
+        "name": AGENT_CONFIGS["politician_2"]["full_name"],
+        "role": "Politician 2",
+        "sprite": "anthony_politician2.png",
+        "initial_position": {"x": 250, "y": 100}
+    })
+    
+    agent_positions = [
+        {"x": 400, "y": 100},
+        {"x": 550, "y": 100},
+        {"x": 100, "y": 250},
+        {"x": 250, "y": 250},
+        {"x": 400, "y": 250}
+    ]
+    agent_sprites = {
+        "waitress": "sarah_waitress.png",
+        "librarian": "margaret_librarian.png",
+        "monk": "thomas_monk.png",
+        "police": "james_police.png",
+        "stay_at_home_mom": "emily_mother.png"
+    }
+    
+    pos_idx = 0
+    for agent_key in ["waitress", "librarian", "monk", "police", "stay_at_home_mom"]:
+        if agent_key in AGENT_CONFIGS:
+            characters.append({
+                "id": agent_key,
+                "name": AGENT_CONFIGS[agent_key]["full_name"],
+                "role": AGENT_CONFIGS[agent_key].get("role", agent_key.replace("_", " ").title()),
+                "sprite": agent_sprites.get(agent_key, f"{agent_key}.png"),
+                "initial_position": agent_positions[pos_idx] if pos_idx < len(agent_positions) else {"x": 100, "y": 100}
+            })
+            pos_idx += 1
+    
+    character_interests = []
+    for agent_key in all_agent_keys:
+        agent_config = AGENT_CONFIGS[agent_key]
+        agent_memory = agent_memories[agent_key]
+        
+        character_interests.append({
+            "character_id": agent_key,
+            "character_name": agent_config["full_name"],
+            "vote_intent": None,  # Will be filled in after voting
+            "summary": agent_memory.get("summary", "")
+        })
+    
+    final_state = {
+        "character_interests": character_interests
+    }
+    
+    # Build and write trajectory
+    trajectory_payload = trajectories.build_trajectory_payload(
+        conversation_id=conversation_id,
+        topic=request.topic,
+        num_rounds=request.num_rounds,
+        start_time=start_time,
+        duration_seconds=duration_seconds,
+        characters=characters,
+        speeches=speeches,
+        final_state=final_state
+    )
+    
+    trajectories.write_trajectory(conversation_id, trajectory_payload)
     
     return {
         "topic": request.topic,
         "agent_responses": all_responses,
-        "conversation_history": town_hall_history
+        "conversation_history": town_hall_history,
+        "conversation_id": conversation_id  # Return conversation_id so clients can reference it
     }
 
 
@@ -916,8 +1041,15 @@ async def update_politician_policy(request: PolicyUpdateRequest):
 
 
 @app.post("/vote")
-async def cast_vote(request: VoteRequest):
-    """Cast a manual vote for a politician from a specific agent."""
+async def cast_vote(request: VoteRequest, conversation_id: Optional[str] = None):
+    """
+    Cast a manual vote for a politician from a specific agent.
+    
+    Args:
+        request: Vote request with agent_name and politician_id
+        conversation_id: Optional conversation ID to update trajectory.json. If not provided,
+                        updates the most recent conversation.
+    """
     if request.agent_name not in AGENT_CONFIGS:
         raise HTTPException(status_code=404, detail=f"Agent '{request.agent_name}' not found")
     
@@ -927,23 +1059,38 @@ async def cast_vote(request: VoteRequest):
     agent_memory = agent_memories[request.agent_name]
     agent_memory["voting_preference"] = request.politician_id
     
+    if conversation_id is None:
+        conversation_id = trajectories.get_last_conversation_id()
+    
+    if conversation_id:
+        vote_intents = {request.agent_name: request.politician_id}
+        trajectories.update_vote_intent(conversation_id, vote_intents)
+    else:
+        print("Warning: No conversation_id available to update trajectory")
+    
     return {
         "agent": AGENT_CONFIGS[request.agent_name]["full_name"],
         "voted_for": request.politician_id,
-        "vote_recorded": True
+        "vote_recorded": True,
+        "conversation_id": conversation_id
     }
 
 
 @app.post("/vote/auto")
-async def auto_vote():
+async def auto_vote(conversation_id: Optional[str] = None):
     """
     Automatically determine each agent's vote using LLM-based decisions.
     Each agent makes a voting decision based on their persona, conversation context,
     and politician policies using the language model.
     
     Returns detailed breakdown of voting decisions with rationale and confidence.
+    
+    Args:
+        conversation_id: Optional conversation ID to update trajectory.json. If not provided,
+                        updates the most recent conversation.
     """
     voting_decisions = []
+    vote_intents = {}
     
     for agent_key, agent_memory in agent_memories.items():
         agent_name = AGENT_CONFIGS[agent_key]["full_name"]
@@ -961,6 +1108,8 @@ async def auto_vote():
             "confidence": llm_decision["confidence"],
             "decided_at": llm_decision["decided_at"]
         })
+        
+        vote_intents[agent_key] = llm_decision["vote"]
     
     votes = {"politician_1": 0, "politician_2": 0, "undecided": 0}
     for decision in voting_decisions:
@@ -974,6 +1123,14 @@ async def auto_vote():
     winner = "politician_1" if votes["politician_1"] > votes["politician_2"] else \
              "politician_2" if votes["politician_2"] > votes["politician_1"] else "tie"
     
+    if conversation_id is None:
+        conversation_id = trajectories.get_last_conversation_id()
+    
+    if conversation_id:
+        trajectories.update_vote_intent(conversation_id, vote_intents)
+    else:
+        print("Warning: No conversation_id available to update trajectory")
+    
     return {
         "voting_complete": True,
         "method": "llm_based",
@@ -982,7 +1139,8 @@ async def auto_vote():
             "total_agents": len(AGENT_CONFIGS),
             "votes": votes,
             "winner": winner
-        }
+        },
+        "conversation_id": conversation_id
     }
 
 
