@@ -515,7 +515,7 @@ function App() {
               className="absolute"
               style={{
                 left: '50px',
-                top: '18px',
+                top: '50px',
                 width: `${GRID_COLS * CELL_SIZE}px`,
                 height: '32px',
                 backgroundImage: 'url(/tiles/wall.png)',
@@ -540,7 +540,7 @@ function App() {
             <div 
               className="absolute"
               style={{
-                left: '18px',
+                left: '50px',
                 top: '50px',
                 width: '32px',
                 height: `${GRID_ROWS * CELL_SIZE}px`,
