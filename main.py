@@ -370,7 +370,7 @@ class TownHallRequest(BaseModel):
     num_rounds: int = 1
 
 
-async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
+async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 150, response_format: dict = None) -> str:
     """
     Call the Modal inference endpoint with the given system prompt and messages.
     Falls back to mock responses if Modal is not configured.
@@ -386,14 +386,14 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
         base_url = MODAL_INFERENCE_URL.rstrip('/')
         endpoint = f"{base_url}/v1/chat/completions"
         
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             payload = {
                 "messages": full_messages,
                 "model": "Qwen/Qwen3-8B-FP8",
                 "stream": False,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "enable_thinking": False,
                 "top_p": 1.0
             }
             
@@ -606,12 +606,24 @@ async def town_hall_conversation(request: TownHallRequest):
     politician_2_config = AGENT_CONFIGS["politician_2"]
     
     p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)
+
+<thinking></thinking>"""
+    print(f"[TownHall] Opening statement: {politician_1_config['full_name']} starting... ({datetime.now().strftime('%H:%M:%S')})")
+    start = datetime.now()
     p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
+    elapsed = (datetime.now() - start).total_seconds()
+    print(f"[TownHall] Opening statement: {politician_1_config['full_name']} completed in {elapsed:.1f}s")
 
     p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)
+
+<thinking></thinking>"""
+    print(f"[TownHall] Opening statement: {politician_2_config['full_name']} starting... ({datetime.now().strftime('%H:%M:%S')})")
+    start = datetime.now()
     p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
+    elapsed = (datetime.now() - start).total_seconds()
+    print(f"[TownHall] Opening statement: {politician_2_config['full_name']} completed in {elapsed:.1f}s")
     
     p1_emoji = await generate_emoji_summary(p1_message, request.topic)
     p2_emoji = await generate_emoji_summary(p2_message, request.topic)
@@ -707,7 +719,7 @@ You are giving your opening statement to the voters. What do you want to say? (R
             for msg in town_hall_history:
                 conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
             
-            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
+            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)\n\n<thinking></thinking>"
             
             # Build messages for LLM with full conversation history
             conversation_messages = []
@@ -722,7 +734,11 @@ You are giving your opening statement to the voters. What do you want to say? (R
             # Add the town hall context
             conversation_messages.append({"role": "user", "content": conversation_context})
             
+            print(f"[TownHall] Round {round_num + 1}/{request.num_rounds}: {agent_config['full_name']} starting... ({datetime.now().strftime('%H:%M:%S')})")
+            start = datetime.now()
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
+            elapsed = (datetime.now() - start).total_seconds()
+            print(f"[TownHall] Round {round_num + 1}/{request.num_rounds}: {agent_config['full_name']} completed in {elapsed:.1f}s")
             
             emoji_summary = await generate_emoji_summary(response, request.topic)
             
