@@ -46,6 +46,7 @@ verl_image = (
         "trl==0.9.6",
         "pybase64",
         "pyzmq",
+        "uvloop",
         "sglang",
     )
     .run_commands(
