@@ -13,15 +13,6 @@ from pathlib import Path
 
 app = modal.App("townhall-verl-training")
 
-src_mount = modal.Mount.from_local_dir(
-    ".",
-    remote_path="/root",
-    condition=lambda pth: not any(
-        part in pth.split("/")
-        for part in [".git", "__pycache__", ".pytest_cache", "node_modules", ".venv"]
-    ),
-)
-
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -32,6 +23,7 @@ image = (
         "pydantic==2.5.0",
         "httpx==0.25.2",
     )
+    .add_local_dir(".", remote_path="/root")
 )
 
 verl_image = (
@@ -54,6 +46,7 @@ verl_image = (
     .run_commands(
         "pip install git+https://github.com/volcengine/verl.git@main",
     )
+    .add_local_dir(".", remote_path="/root")
 )
 
 backend_volume = modal.Volume.from_name("townhall-backend-data", create_if_missing=True)
@@ -63,7 +56,6 @@ backend_volume = modal.Volume.from_name("townhall-backend-data", create_if_missi
     gpu=None,
     scaledown_window=300,
     volumes={"/data": backend_volume},
-    mounts=[src_mount],
 )
 @modal.concurrent(max_inputs=100)
 @modal.asgi_app()
@@ -84,7 +76,6 @@ def backend_asgi():
     gpu="H100:8",
     timeout=3600 * 4,
     volumes={"/data": backend_volume},
-    mounts=[src_mount],
 )
 def run_verl_training(
     backend_url: str,
