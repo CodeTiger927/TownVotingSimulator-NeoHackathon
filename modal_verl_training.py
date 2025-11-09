@@ -28,8 +28,11 @@ image = (
 
 verl_image = (
     modal.Image.debian_slim(python_version="3.11")
+    .apt_install("git")
+    .run_commands(
+        "pip install torch==2.1.0+cu121 --index-url https://download.pytorch.org/whl/cu121",
+    )
     .pip_install(
-        "torch==2.1.0",
         "transformers==4.36.0",
         "accelerate==0.25.0",
         "datasets==2.15.0",
@@ -41,8 +44,8 @@ verl_image = (
         "httpx==0.25.2",
         "pyyaml==6.0.1",
         "hydra-core==1.3.2",
+        "sglang",
     )
-    .apt_install("git")
     .run_commands(
         "pip install git+https://github.com/volcengine/verl.git@main",
     )
@@ -50,12 +53,16 @@ verl_image = (
 )
 
 backend_volume = modal.Volume.from_name("townhall-backend-data", create_if_missing=True)
+hf_cache_volume = modal.Volume.from_name("hf-cache", create_if_missing=True)
 
 @app.function(
     image=image,
     gpu=None,
     scaledown_window=300,
-    volumes={"/data": backend_volume},
+    volumes={
+        "/data": backend_volume,
+        "/root/.cache/huggingface": hf_cache_volume,
+    },
 )
 @modal.concurrent(max_inputs=100)
 @modal.asgi_app()
@@ -75,7 +82,10 @@ def backend_asgi():
     image=verl_image,
     gpu="H100:8",
     timeout=3600 * 4,
-    volumes={"/data": backend_volume},
+    volumes={
+        "/data": backend_volume,
+        "/root/.cache/huggingface": hf_cache_volume,
+    },
 )
 def run_verl_training(
     backend_url: str,
@@ -114,6 +124,12 @@ def run_verl_training(
     config_dir = work_dir / "config"
     config_dir.mkdir(exist_ok=True)
     
+    datasets_dir = work_dir / "datasets"
+    datasets_dir.mkdir(exist_ok=True)
+    
+    output_dir = work_dir / "outputs"
+    output_dir.mkdir(exist_ok=True)
+    
     interaction_config = {
         "interaction": [
             {
@@ -133,6 +149,22 @@ def run_verl_training(
     
     with open(config_dir / "interaction.yaml", "w") as f:
         yaml.dump(interaction_config, f)
+    
+    dataset_samples = [
+        {
+            "prompt": "You are a political candidate. Be persuasive and concise.",
+            "interaction_kwargs": {
+                "name": "debate_townhall",
+                "topic": topic,
+            }
+        }
+        for _ in range(max(num_episodes, 5))
+    ]
+    
+    dataset_file = datasets_dir / "debate_samples.jsonl"
+    with open(dataset_file, "w") as f:
+        for sample in dataset_samples:
+            f.write(json.dumps(sample) + "\n")
     
     rollout_config = {
         "actor_rollout_ref": {
@@ -157,10 +189,15 @@ def run_verl_training(
             "model_name_or_path": model_name,
             "trust_remote_code": True,
         },
+        "dataset": {
+            "path": str(dataset_file),
+            "split": "train",
+        },
         "trainer": {
             "total_epochs": 1,
             "total_training_steps": num_episodes,
             "save_freq": max(num_episodes // 4, 1),
+            "output_dir": str(output_dir),
         },
         "algorithm": {
             "kl_ctrl": {
@@ -185,9 +222,6 @@ def run_verl_training(
         yaml.dump(train_config, f)
     
     print(f"Created config files in {config_dir}")
-    print(f"Interaction config: {interaction_config}")
-    print(f"Rollout config: {rollout_config}")
-    print(f"Training config: {train_config}")
     
     print("\n" + "="*80)
     print("veRL Training Configuration Summary")
@@ -198,24 +232,102 @@ def run_verl_training(
     print(f"Episodes: {num_episodes}")
     print(f"Batch Size: {batch_size}")
     print(f"Learning Rate: {learning_rate}")
-    print(f"GPUs: 8xH100")
+    print(f"Dataset: {dataset_file}")
+    print(f"Output Dir: {output_dir}")
+    
+    import torch
+    gpu_count = torch.cuda.device_count()
+    print(f"GPUs Available: {gpu_count}")
     print("="*80 + "\n")
     
-    print("Note: Full veRL training integration requires:")
-    print("1. veRL package installed with all dependencies")
-    print("2. SGLang backend configured for multi-turn rollout")
-    print("3. Proper model loading and distributed training setup")
-    print("\nThis is a placeholder for the full training loop.")
-    print("To run actual training, use: python -m verl.trainer.main_ppo --config-path=./config --config-name=train_ppo")
+    print("Probing backend URL to verify connectivity...")
+    import httpx
+    try:
+        response = httpx.post(
+            f"{backend_url}/rl/townhall/start",
+            json={"topic": topic},
+            timeout=30.0
+        )
+        if response.status_code == 200:
+            print(f"✓ Backend is reachable and responding")
+        else:
+            print(f"⚠ Backend returned status {response.status_code}")
+    except Exception as e:
+        print(f"⚠ Warning: Could not reach backend: {e}")
+        print("Continuing anyway - backend may start during training...")
     
-    return {
-        "status": "training_configured",
-        "config_dir": str(config_dir),
-        "backend_url": backend_url,
-        "model": model_name,
-        "num_episodes": num_episodes,
-        "message": "Training configuration created. Full training requires veRL trainer setup."
-    }
+    print("\n" + "="*80)
+    print("Starting veRL PPO Training")
+    print("="*80 + "\n")
+    
+    import subprocess
+    
+    training_args = [
+        sys.executable, "-m", "verl.trainer.main_ppo",
+        "--config-path", str(config_dir),
+        "--config-name", "train_ppo",
+        f"actor_rollout_ref.rollout.name=sglang",
+        "actor_rollout_ref.rollout.multi_turn=true",
+        "actor_rollout_ref.rollout.mode=sync",
+        f"actor_rollout_ref.rollout.multi_turn_interaction_config_path={config_dir/'interaction.yaml'}",
+        f"model.model_name_or_path={model_name}",
+        f"dataset.path={dataset_file}",
+        f"trainer.total_training_steps={num_episodes}",
+        f"trainer.output_dir={output_dir}",
+        f"trainer.devices={gpu_count}",
+        "trainer.strategy=ddp",
+        "trainer.num_nodes=1",
+    ]
+    
+    print(f"Running command: {' '.join(training_args)}")
+    print("\n" + "-"*80 + "\n")
+    
+    try:
+        result = subprocess.run(
+            training_args,
+            cwd=str(work_dir),
+            check=True,
+            capture_output=False,  # Stream to Modal logs
+            text=True
+        )
+        
+        print("\n" + "-"*80)
+        print("✓ Training completed successfully!")
+        print("-"*80 + "\n")
+        
+        return {
+            "status": "training_completed",
+            "exit_code": result.returncode,
+            "config_dir": str(config_dir),
+            "backend_url": backend_url,
+            "model": model_name,
+            "num_episodes": num_episodes,
+            "message": "veRL PPO training completed successfully"
+        }
+        
+    except subprocess.CalledProcessError as e:
+        print(f"\n✗ Training failed with exit code {e.returncode}")
+        print(f"Error: {e}")
+        return {
+            "status": "training_failed",
+            "exit_code": e.returncode,
+            "config_dir": str(config_dir),
+            "backend_url": backend_url,
+            "model": model_name,
+            "num_episodes": num_episodes,
+            "message": f"Training failed with exit code {e.returncode}"
+        }
+    except Exception as e:
+        print(f"\n✗ Unexpected error during training: {e}")
+        return {
+            "status": "training_error",
+            "error": str(e),
+            "config_dir": str(config_dir),
+            "backend_url": backend_url,
+            "model": model_name,
+            "num_episodes": num_episodes,
+            "message": f"Unexpected error: {str(e)}"
+        }
 
 
 @app.local_entrypoint()
