@@ -269,78 +269,6 @@ The confidence field must be exactly one of: low, medium, or high"""
         }
 
 
-def calculate_persuasion_delta(agent_key: str, message: str, topic: str) -> int:
-    """
-    Calculate persuasion delta based on message content and agent preferences.
-    Returns a value between -3 and +3.
-    """
-    message_lower = message.lower()
-    weights = AGENT_POLICY_WEIGHTS.get(agent_key, {})
-    delta = 0
-    
-    if "increase" in message_lower or "more" in message_lower or "expand" in message_lower:
-        if "welfare" in message_lower:
-            delta += weights.get("welfare", 0)
-        if "school" in message_lower or "education" in message_lower:
-            delta += weights.get("schools", 0)
-        if "health" in message_lower or "healthcare" in message_lower:
-            delta += weights.get("health", 0)
-        if "police" in message_lower or "defense" in message_lower or "security" in message_lower:
-            delta += weights.get("police", 0)
-    
-    if "decrease" in message_lower or "cut" in message_lower or "reduce" in message_lower:
-        if "police" in message_lower or "defense" in message_lower:
-            delta -= weights.get("police", 0)  # Negative of negative = positive for anti-police agents
-    
-    if "immigration" in message_lower or "immigrant" in message_lower:
-        if "open" in message_lower or "welcome" in message_lower or "diversity" in message_lower:
-            delta += weights.get("immigration_open", 0)
-        if "restrict" in message_lower or "control" in message_lower or "limit" in message_lower:
-            delta += weights.get("immigration_restrict", 0)
-        if "religion" in message_lower or "faith" in message_lower:
-            delta += weights.get("immigration_religious", 0)
-    
-    return max(-3, min(3, delta))
-
-
-def calculate_policy_compatibility(agent_key: str, politician_id: str) -> int:
-    """
-    Calculate how compatible a politician's stated policies are with an agent's values.
-    Returns a score between -10 and +10.
-    """
-    politician = politician_policies[politician_id]
-    weights = AGENT_POLICY_WEIGHTS.get(agent_key, {})
-    score = 0
-    
-    immigration_policy = politician.get("immigration_policy", "").lower()
-    if immigration_policy:
-        if "open" in immigration_policy or "welcome" in immigration_policy:
-            score += weights.get("immigration_open", 0) * 2
-        if "restrict" in immigration_policy or "control" in immigration_policy:
-            score += weights.get("immigration_restrict", 0) * 2
-        if "religion" in immigration_policy or "faith" in immigration_policy:
-            score += weights.get("immigration_religious", 0) * 2
-    
-    budget_policy = politician.get("budget_policy", {})
-    for category, stance in budget_policy.items():
-        category_lower = category.lower()
-        stance_lower = stance.lower()
-        
-        weight_key = category_lower
-        if category_lower in ["police", "defense", "security"]:
-            weight_key = "police"
-        elif category_lower in ["school", "schools", "education"]:
-            weight_key = "schools"
-        elif category_lower in ["health", "healthcare"]:
-            weight_key = "health"
-        
-        if "increase" in stance_lower or "more" in stance_lower:
-            score += weights.get(weight_key, 0) * 2
-        elif "decrease" in stance_lower or "less" in stance_lower:
-            score -= weights.get(weight_key, 0) * 2
-    
-    return max(-10, min(10, score))
-
 
 class TalkRequest(BaseModel):
     agent_name: str
@@ -483,9 +411,6 @@ async def talk_to_agent(request: TalkRequest):
     
     response = await call_llm(agent_config["system_prompt"], conversation_messages)
     
-    persuasion_delta = calculate_persuasion_delta(request.agent_name, request.message, "general")
-    agent_memory["persuasion"][request.politician_id] += persuasion_delta
-    agent_memory["persuasion"][request.politician_id] = max(-10, min(10, agent_memory["persuasion"][request.politician_id]))
     
     agent_memory["conversation_history"].append({
         "role": "user",
@@ -504,8 +429,6 @@ async def talk_to_agent(request: TalkRequest):
     return {
         "agent": agent_config["full_name"],
         "response": response,
-        "persuasion_delta": persuasion_delta,
-        "current_persuasion": agent_memory["persuasion"][request.politician_id],
         "memory_updated": True
     }
 
@@ -533,11 +456,7 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
         
         conversation_messages = [{"role": "user", "content": process_prompt}]
         response = await call_llm(agent_config["system_prompt"], conversation_messages)
-        
-        persuasion_delta = calculate_persuasion_delta(agent_key, request.message, request.topic)
-        agent_memory["persuasion"][request.politician_id] += persuasion_delta
-        agent_memory["persuasion"][request.politician_id] = max(-10, min(10, agent_memory["persuasion"][request.politician_id]))
-        
+                
         agent_memory["conversation_history"].append({
             "role": "broadcast",
             "content": request.message,
@@ -556,8 +475,6 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
         responses[agent_key] = {
             "agent": agent_config["full_name"],
             "reaction": response,
-            "persuasion_delta": persuasion_delta,
-            "current_persuasion": agent_memory["persuasion"][request.politician_id]
         }
     
     return {
@@ -594,14 +511,6 @@ What is your response or question to the politicians? (Respond in character, bri
         conversation_messages = [{"role": "user", "content": town_hall_prompt}]
         response = await call_llm(agent_config["system_prompt"], conversation_messages)
         
-        delta_1 = calculate_persuasion_delta(agent_key, request.politician_1_message, request.topic)
-        delta_2 = calculate_persuasion_delta(agent_key, request.politician_2_message, request.topic)
-        
-        agent_memory["persuasion"]["politician_1"] += delta_1
-        agent_memory["persuasion"]["politician_2"] += delta_2
-        agent_memory["persuasion"]["politician_1"] = max(-10, min(10, agent_memory["persuasion"]["politician_1"]))
-        agent_memory["persuasion"]["politician_2"] = max(-10, min(10, agent_memory["persuasion"]["politician_2"]))
-        
         agent_memory["conversation_history"].append({
             "role": "townhall",
             "politician_1_message": request.politician_1_message,
@@ -621,14 +530,6 @@ What is your response or question to the politicians? (Respond in character, bri
             "agent": agent_config["full_name"],
             "agent_key": agent_key,
             "response": response,
-            "persuasion_deltas": {
-                "politician_1": delta_1,
-                "politician_2": delta_2
-            },
-            "current_persuasion": {
-                "politician_1": agent_memory["persuasion"]["politician_1"],
-                "politician_2": agent_memory["persuasion"]["politician_2"]
-            }
         })
     
     return {
@@ -750,16 +651,6 @@ async def debug_agent(agent_name: str):
     agent_memory = agent_memories[agent_name]
     agent_config = AGENT_CONFIGS[agent_name]
     
-    compatibility_scores = {
-        "politician_1": calculate_policy_compatibility(agent_name, "politician_1"),
-        "politician_2": calculate_policy_compatibility(agent_name, "politician_2")
-    }
-    
-    total_scores = {}
-    for politician_id in ["politician_1", "politician_2"]:
-        persuasion = agent_memory["persuasion"].get(politician_id, 0)
-        compatibility = compatibility_scores[politician_id]
-        total_scores[politician_id] = persuasion + compatibility
     
     return {
         "agent": agent_config["full_name"],
@@ -769,12 +660,6 @@ async def debug_agent(agent_name: str):
         "current_vote": agent_memory.get("voting_preference"),
         "memory_summary": agent_memory.get("summary", "No summary yet"),
         "conversation_count": len(agent_memory["conversation_history"]),
-        "legacy_scores": {
-            "persuasion": agent_memory["persuasion"],
-            "policy_compatibility": compatibility_scores,
-            "total_scores": total_scores,
-            "note": "These numerical scores are kept for debugging but not used for voting decisions"
-        }
     }
 
 
@@ -790,19 +675,20 @@ async def get_voting_results():
     vote_details = []
     
     for agent_key, agent_memory in agent_memories.items():
-        vote = agent_memory.get("voting_preference")
-        agent_name = AGENT_CONFIGS[agent_key]["full_name"]
+        if agent_key != "politician_1" and agent_key != "politician_2":
+            vote = agent_memory.get("voting_preference")
+            agent_name = AGENT_CONFIGS[agent_key]["full_name"]
+            
+            if vote == "politician_1":
+                votes["politician_1"] += 1
+                vote_details.append({"agent": agent_name, "vote": "Politician 1"})
+            elif vote == "politician_2":
+                votes["politician_2"] += 1
+                vote_details.append({"agent": agent_name, "vote": "Politician 2"})
+            else:
+                votes["undecided"] += 1
+                vote_details.append({"agent": agent_name, "vote": "Undecided"})
         
-        if vote == "politician_1":
-            votes["politician_1"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Politician 1"})
-        elif vote == "politician_2":
-            votes["politician_2"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Politician 2"})
-        else:
-            votes["undecided"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Undecided"})
-    
     return {
         "total_agents": len(AGENT_CONFIGS),
         "votes": votes,
