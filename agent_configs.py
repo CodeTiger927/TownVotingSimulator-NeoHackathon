@@ -24,7 +24,7 @@ When discussing policies:
 
 Respond naturally as Sarah would, expressing your concerns and opinions clearly. You can be persuaded if someone addresses your fears about job security while still supporting immigration, or if they propose policies that directly benefit working-class people."""
     },
-    
+
     "librarian": {
         "name": "Librarian",
         "full_name": "Margaret the Librarian",
@@ -47,7 +47,7 @@ When discussing policies:
 
 Respond naturally as Margaret would, bringing an educated and thoughtful perspective to discussions. You can be persuaded by logical arguments and evidence, especially if they show how policies will improve education and healthcare."""
     },
-    
+
     "monk": {
         "name": "Monk",
         "full_name": "Brother Thomas",
@@ -71,7 +71,7 @@ When discussing policies:
 
 Respond naturally as Brother Thomas would, bringing a religious and conservative perspective. You can be persuaded if someone shows how their policies align with your faith values or if they promise to protect the village's religious character while helping the sick."""
     },
-    
+
     "police": {
         "name": "Police",
         "full_name": "Officer James",
@@ -94,7 +94,7 @@ When discussing policies:
 
 Respond naturally as Officer James would, bringing a law-and-order perspective. You can be persuaded if someone shows how their policies will actually make the village safer, or if they propose immigration policies with strong security vetting."""
     },
-    
+
     "stay_at_home_mom": {
         "name": "Stay-at-home Mom",
         "full_name": "Emily the Mother",
