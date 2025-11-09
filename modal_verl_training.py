@@ -198,6 +198,9 @@ def run_verl_training(
             "total_training_steps": num_episodes,
             "save_freq": max(num_episodes // 4, 1),
             "output_dir": str(output_dir),
+            "devices": 8,
+            "strategy": "ddp",
+            "num_nodes": 1,
         },
         "algorithm": {
             "kl_ctrl": {
