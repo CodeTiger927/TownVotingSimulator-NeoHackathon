@@ -28,26 +28,26 @@ else
     TOPIC="$1"
 fi
 
-if [ -z "$2" ]; then
-    P1_MESSAGE="I believe in welcoming diversity and open borders with proper background checks. Immigration strengthens our community and brings new perspectives and skills."
-else
-    P1_MESSAGE="$2"
-fi
+# if [ -z "$2" ]; then
+#     P1_MESSAGE="I believe in welcoming diversity and open borders with proper background checks. Immigration strengthens our community and brings new perspectives and skills."
+# else
+#     P1_MESSAGE="$2"
+# fi
 
-if [ -z "$3" ]; then
-    P2_MESSAGE="I support strict immigration controls and border security. We must protect our village's safety and ensure only vetted individuals can enter."
-else
-    P2_MESSAGE="$3"
-fi
+# if [ -z "$3" ]; then
+#     P2_MESSAGE="I support strict immigration controls and border security. We must protect our village's safety and ensure only vetted individuals can enter."
+# else
+#     P2_MESSAGE="$3"
+# fi
 
 echo "Topic: ${TOPIC}"
-echo ""
-echo "Politician 1 Message:"
-echo "  ${P1_MESSAGE}"
-echo ""
-echo "Politician 2 Message:"
-echo "  ${P2_MESSAGE}"
-echo ""
+# echo ""
+# echo "Politician 1 Message:"
+# echo "  ${P1_MESSAGE}"
+# echo ""
+# echo "Politician 2 Message:"
+# echo "  ${P2_MESSAGE}"
+# echo ""
 echo "Starting town hall conversation..."
 echo "=========================================="
 echo ""
@@ -55,9 +55,7 @@ echo ""
 RESPONSE=$(curl -s -X POST "${BASE_URL}/townhall" \
     -H "Content-Type: application/json" \
     -d "{
-        \"topic\": \"${TOPIC}\",
-        \"politician_1_message\": \"${P1_MESSAGE}\",
-        \"politician_2_message\": \"${P2_MESSAGE}\"
+        \"topic\": \"${TOPIC}\"
     }")
 
 if [ $? -ne 0 ]; then
@@ -76,6 +74,7 @@ try:
     print('=' * 60)
     print(f\"Topic: {data.get('topic', 'N/A')}\")
     print(f\"Turn Order: {', '.join(data.get('turn_order', []))}\")
+    print(f\"Number of responses: {len(data.get('agent_responses', []))}\")
     print()
     
     print('AGENT RESPONSES:')
@@ -83,13 +82,16 @@ try:
     for response in data.get('agent_responses', []):
         agent = response.get('agent', 'Unknown')
         message = response.get('response', 'No response')
+        round_num = response.get('round', '?')
         
         import re
+        original_length = len(str(message))
         message = re.sub(r'<think>.*?</think>', '', message, flags=re.DOTALL).strip()
         
         persuasion_deltas = response.get('persuasion_deltas', {})
         
-        print(f\"\n{agent}:\")
+        print(f\"\n{agent} (Round {round_num}):\")
+        print(f\"  [DEBUG: Original length: {original_length}, After strip: {len(message)}]\")
         if message:
             print(f\"  {message[:300]}{'...' if len(message) > 300 else ''}\")
         else:
