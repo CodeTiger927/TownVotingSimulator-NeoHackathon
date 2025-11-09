@@ -43,7 +43,7 @@ verl_image = (
         "httpx==0.25.2",
         "pyyaml==6.0.1",
         "hydra-core==1.3.2",
-        "trl==0.7.4",
+        "trl==0.9.6",
         "sglang",
     )
     .run_commands(
