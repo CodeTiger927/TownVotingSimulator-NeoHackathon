@@ -103,8 +103,8 @@ function App() {
       positions[char.id] = {
         gridX,
         gridY,
-        pixelX: 50 + gridX * CELL_SIZE,
-        pixelY: 50 + gridY * CELL_SIZE,
+        pixelX: 50 + gridX * CELL_SIZE + CELL_SIZE / 2,
+        pixelY: 50 + gridY * CELL_SIZE + CELL_SIZE / 2,
         path: [],
         targetGridX: gridX,
         targetGridY: gridY,
@@ -221,8 +221,8 @@ function App() {
               
               pos.gridX = nextCell.x
               pos.gridY = nextCell.y
-              pos.pixelX = 50 + pos.gridX * CELL_SIZE
-              pos.pixelY = 50 + pos.gridY * CELL_SIZE
+              pos.pixelX = 50 + pos.gridX * CELL_SIZE + CELL_SIZE / 2
+              pos.pixelY = 50 + pos.gridY * CELL_SIZE + CELL_SIZE / 2
               pos.path.shift()
               
               if (pos.path.length === 0) {
@@ -497,19 +497,15 @@ function App() {
             </div>
           </div>
 
-          <div className="flex-1 relative" style={{ backgroundColor: '#2d5016' }}>
+          <div className="flex-1 relative" style={{ backgroundColor: '#3a2a1a' }}>
             <div 
               className="absolute"
               style={{
                 left: '50px',
                 top: '50px',
-                width: '700px',
-                height: '400px',
-                backgroundColor: '#8b6b4a',
-                backgroundImage: `
-                  repeating-linear-gradient(to right, #00000022 0 1px, transparent 1px 32px),
-                  repeating-linear-gradient(to bottom, #00000022 0 1px, transparent 1px 32px)
-                `,
+                width: `${GRID_COLS * CELL_SIZE}px`,
+                height: `${GRID_ROWS * CELL_SIZE}px`,
+                backgroundImage: 'url(/tiles/floor_wood.png)',
                 backgroundSize: '32px 32px',
                 backgroundPosition: '0 0',
                 imageRendering: 'pixelated'
@@ -519,11 +515,52 @@ function App() {
               className="absolute"
               style={{
                 left: '50px',
+                top: '18px',
+                width: `${GRID_COLS * CELL_SIZE}px`,
+                height: '32px',
+                backgroundImage: 'url(/tiles/wall.png)',
+                backgroundSize: '32px 32px',
+                imageRendering: 'pixelated',
+                zIndex: 0
+              }}
+            />
+            <div 
+              className="absolute"
+              style={{
+                left: '50px',
+                top: `${50 + GRID_ROWS * CELL_SIZE}px`,
+                width: `${GRID_COLS * CELL_SIZE}px`,
+                height: '32px',
+                backgroundImage: 'url(/tiles/wall.png)',
+                backgroundSize: '32px 32px',
+                imageRendering: 'pixelated',
+                zIndex: 0
+              }}
+            />
+            <div 
+              className="absolute"
+              style={{
+                left: '18px',
                 top: '50px',
-                width: '700px',
-                height: '400px',
-                boxShadow: 'inset 0 0 0 4px #654321',
-                pointerEvents: 'none'
+                width: '32px',
+                height: `${GRID_ROWS * CELL_SIZE}px`,
+                backgroundImage: 'url(/tiles/wall.png)',
+                backgroundSize: '32px 32px',
+                imageRendering: 'pixelated',
+                zIndex: 0
+              }}
+            />
+            <div 
+              className="absolute"
+              style={{
+                left: `${50 + GRID_COLS * CELL_SIZE}px`,
+                top: '50px',
+                width: '32px',
+                height: `${GRID_ROWS * CELL_SIZE}px`,
+                backgroundImage: 'url(/tiles/wall.png)',
+                backgroundSize: '32px 32px',
+                imageRendering: 'pixelated',
+                zIndex: 0
               }}
             />
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -535,8 +572,8 @@ function App() {
             <div
               className="absolute"
               style={{
-                left: `${50 + LECTERN.gridX * CELL_SIZE}px`,
-                top: `${50 + LECTERN.gridY * CELL_SIZE}px`,
+                left: `${50 + LECTERN.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
+                top: `${50 + LECTERN.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
                 width: `${CELL_SIZE}px`,
                 height: `${CELL_SIZE}px`,
                 transform: 'translate(-50%, -50%)',
