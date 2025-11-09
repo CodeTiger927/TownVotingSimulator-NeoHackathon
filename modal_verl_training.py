@@ -231,6 +231,12 @@ def run_verl_training(
                 "repetition_penalty": 1.0,
             }
         },
+        "ray_kwargs": {
+            "ray_init": {
+                "num_cpus": 32,
+                "num_gpus": 8,
+            }
+        },
     }
     
     with open(config_dir / "train_ppo.yaml", "w") as f:
