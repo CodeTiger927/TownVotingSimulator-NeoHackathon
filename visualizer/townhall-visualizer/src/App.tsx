@@ -76,6 +76,16 @@ function App() {
   const plannedMoveToLecternRef = useRef(false)
   const plannedExitRef = useRef(false)
   const speakingTimerStartedRef = useRef(false)
+  const speakerStateRef = useRef(speakerState)
+  const lecternOccupiedByRef = useRef(lecternOccupiedBy)
+
+  useEffect(() => {
+    speakerStateRef.current = speakerState
+  }, [speakerState])
+
+  useEffect(() => {
+    lecternOccupiedByRef.current = lecternOccupiedBy
+  }, [lecternOccupiedBy])
 
   const loadTrajectory = async (file: File) => {
     const text = await file.text()
@@ -183,18 +193,18 @@ function App() {
           const pos = newPositions[char.id]
           if (!pos) return
 
-          const isCurrentSpeaker = lecternOccupiedBy === char.id
+          const isCurrentSpeaker = lecternOccupiedByRef.current === char.id
           
           if (isCurrentSpeaker && pos.path.length > 0) {
-            console.log('SPEAKER MOVING:', char.id, 'at', pos.gridX, pos.gridY, 'target', pos.targetGridX, pos.targetGridY, 'path length', pos.path.length, 'speakerState', speakerState)
+            console.log('SPEAKER MOVING:', char.id, 'at', pos.gridX, pos.gridY, 'target', pos.targetGridX, pos.targetGridY, 'path length', pos.path.length, 'speakerState', speakerStateRef.current)
           }
           
-          if (char.id !== lecternOccupiedBy || speakerState !== 'moving_to_lectern') {
+          if (char.id !== lecternOccupiedByRef.current || speakerStateRef.current !== 'moving_to_lectern') {
             occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
           }
 
           if (pos.path.length === 0) {
-            if (!isCurrentSpeaker && speakerState !== 'moving_to_lectern' && speakerState !== 'speaking' && speakerState !== 'leaving_lectern' && Math.random() < 0.3) {
+            if (!isCurrentSpeaker && speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.3) {
               const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
               const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
 
@@ -250,9 +260,9 @@ function App() {
 
           const spot = getLecternSpot()
           if (isCurrentSpeaker) {
-            console.log('CHECKING ARRIVAL:', char.id, 'pos:', pos.gridX, pos.gridY, 'spot:', spot.x, spot.y, 'speakerState:', speakerState, 'match:', pos.gridX === spot.x && pos.gridY === spot.y)
+            console.log('CHECKING ARRIVAL:', char.id, 'pos:', pos.gridX, pos.gridY, 'spot:', spot.x, spot.y, 'speakerState:', speakerStateRef.current, 'match:', pos.gridX === spot.x && pos.gridY === spot.y)
           }
-          if (speakerState === 'moving_to_lectern' && isCurrentSpeaker && 
+          if (speakerStateRef.current === 'moving_to_lectern' && isCurrentSpeaker && 
               pos.gridX === spot.x && pos.gridY === spot.y) {
             console.log('✅ ARRIVED AT LECTERN:', char.id, 'at', pos.gridX, pos.gridY)
             pos.path = []
@@ -263,8 +273,8 @@ function App() {
             pos.targetGridY = pos.gridY
             setSpeakerState('speaking')
           }
-
-          if (speakerState === 'leaving_lectern' && isCurrentSpeaker &&
+          
+          if (speakerStateRef.current === 'leaving_lectern' && isCurrentSpeaker && 
               (pos.gridX !== spot.x || pos.gridY !== spot.y)) {
             setLecternOccupiedBy(null)
             setSpeakerState('done')
@@ -286,7 +296,7 @@ function App() {
           const pos = newPositions[char.id]
           if (!pos) return
 
-          if (lecternOccupiedBy === char.id && speakerState === 'speaking') {
+          if (lecternOccupiedByRef.current === char.id && speakerStateRef.current === 'speaking') {
             pos.animFrame = 1
             pos.isMoving = false
           } else if (pos.isMoving) {
@@ -559,8 +569,8 @@ function App() {
               const frameCol = pos.animFrame
 
               const debugBorder =
-                char.id === lecternOccupiedBy && speakerState === 'speaking' ? '3px solid #22c55e' :
-                (char.id === lecternOccupiedBy && speakerState === 'moving_to_lectern') || pos.isMoving ? '3px solid #ef4444' :
+                char.id === lecternOccupiedByRef.current && speakerStateRef.current === 'speaking' ? '3px solid #22c55e' :
+                (char.id === lecternOccupiedByRef.current && speakerStateRef.current === 'moving_to_lectern') || pos.isMoving ? '3px solid #ef4444' :
                 'none'
 
               return (
