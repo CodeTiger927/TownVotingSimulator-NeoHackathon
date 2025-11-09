@@ -58,6 +58,7 @@ const GRID_COLS = Math.floor(700 / CELL_SIZE)
 const GRID_ROWS = Math.floor(400 / CELL_SIZE)
 const SPRITE_FRAME_WIDTH = 32
 const SPRITE_FRAME_HEIGHT = 32
+const LECTERN = { gridX: Math.floor(21 / 2), gridY: 3 }
 
 function App() {
   const [trajectory, setTrajectory] = useState<Trajectory | null>(null)
@@ -65,9 +66,12 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [showFinalState, setShowFinalState] = useState(false)
   const [characterPositions, setCharacterPositions] = useState<Record<string, GridPosition>>({})
+  const [speakerState, setSpeakerState] = useState<'moving_to_lectern' | 'speaking' | 'leaving_lectern' | 'done'>('done')
+  const [lecternOccupiedBy, setLecternOccupiedBy] = useState<string | null>(null)
   const animationFrameRef = useRef<number>()
   const lastMoveTimeRef = useRef<number>(Date.now())
   const lastAnimFrameTimeRef = useRef<number>(Date.now())
+  const speechTimerRef = useRef<number | null>(null)
 
   const loadTrajectory = async (file: File) => {
     const text = await file.text()
@@ -171,12 +175,16 @@ function App() {
           occupiedCells.add(`${pos.gridX},${pos.gridY}`)
         })
         
+        occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
+        
         trajectory.characters.forEach(char => {
           const pos = newPositions[char.id]
           if (!pos) return
           
+          const isCurrentSpeaker = lecternOccupiedBy === char.id
+          
           if (pos.path.length === 0) {
-            if (Math.random() < 0.3) {
+            if (!isCurrentSpeaker && Math.random() < 0.3) {
               const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
               const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
               
@@ -280,15 +288,102 @@ function App() {
     if (currentSpeechIndex >= trajectory.speeches.length) {
       setIsPlaying(false)
       setShowFinalState(true)
+      setSpeakerState('done')
+      setLecternOccupiedBy(null)
       return
     }
 
-    const timer = setTimeout(() => {
-      setCurrentSpeechIndex(prev => prev + 1)
-    }, 3000)
+    const currentSpeech = trajectory.speeches[currentSpeechIndex]
+    const speakerId = currentSpeech.character_id
+    const speakerPos = characterPositions[speakerId]
+    
+    if (!speakerPos) return
 
-    return () => clearTimeout(timer)
-  }, [isPlaying, currentSpeechIndex, trajectory])
+    if (speakerState === 'done') {
+      setSpeakerState('moving_to_lectern')
+      setLecternOccupiedBy(speakerId)
+      
+      setCharacterPositions(prev => {
+        const newPositions = { ...prev }
+        const pos = newPositions[speakerId]
+        if (!pos) return prev
+        
+        const occupiedCells = new Set<string>()
+        Object.values(newPositions).forEach(p => {
+          if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
+        })
+        
+        const path = bfs(pos.gridX, pos.gridY, LECTERN.gridX, LECTERN.gridY, occupiedCells)
+        if (path.length > 0) {
+          pos.path = path
+          pos.targetGridX = LECTERN.gridX
+          pos.targetGridY = LECTERN.gridY
+          pos.isMoving = true
+        } else {
+          setSpeakerState('speaking')
+        }
+        
+        return newPositions
+      })
+    } else if (speakerState === 'moving_to_lectern') {
+      if (speakerPos.gridX === LECTERN.gridX && speakerPos.gridY === LECTERN.gridY) {
+        setSpeakerState('speaking')
+        
+        setCharacterPositions(prev => {
+          const newPositions = { ...prev }
+          const pos = newPositions[speakerId]
+          if (pos) {
+            pos.direction = 'down'
+            pos.isMoving = false
+            pos.animFrame = 1
+          }
+          return newPositions
+        })
+        
+        const words = currentSpeech.message.trim().split(/\s+/).filter(Boolean).length
+        const durationMs = Math.max(2500, Math.min(15000, words * 300))
+        
+        if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
+        speechTimerRef.current = window.setTimeout(() => {
+          setSpeakerState('leaving_lectern')
+        }, durationMs)
+      }
+    } else if (speakerState === 'leaving_lectern') {
+      setCharacterPositions(prev => {
+        const newPositions = { ...prev }
+        const pos = newPositions[speakerId]
+        if (!pos) return prev
+        
+        if (pos.path.length === 0) {
+          const occupiedCells = new Set<string>()
+          Object.values(newPositions).forEach(p => {
+            if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
+          })
+          occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
+          
+          let targetX, targetY
+          do {
+            targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
+            targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
+          } while (Math.abs(targetX - LECTERN.gridX) < 2 && Math.abs(targetY - LECTERN.gridY) < 2)
+          
+          const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
+          if (path.length > 0) {
+            pos.path = path
+            pos.targetGridX = targetX
+            pos.targetGridY = targetY
+            pos.isMoving = true
+          }
+        } else if (pos.gridX !== LECTERN.gridX || pos.gridY !== LECTERN.gridY) {
+          setLecternOccupiedBy(null)
+          setSpeakerState('done')
+          setCurrentSpeechIndex(prev => prev + 1)
+        }
+        
+        return newPositions
+      })
+    }
+  }, [isPlaying, currentSpeechIndex, trajectory, speakerState, characterPositions, lecternOccupiedBy])
 
   const handlePlay = () => {
     setIsPlaying(true)
@@ -300,12 +395,22 @@ function App() {
 
   const handlePause = () => {
     setIsPlaying(false)
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current)
+      speechTimerRef.current = null
+    }
   }
 
   const handleReset = () => {
     setCurrentSpeechIndex(0)
     setIsPlaying(false)
     setShowFinalState(false)
+    setSpeakerState('done')
+    setLecternOccupiedBy(null)
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current)
+      speechTimerRef.current = null
+    }
   }
 
   const currentSpeech = trajectory?.speeches[currentSpeechIndex]
@@ -379,13 +484,48 @@ function App() {
             </div>
           </div>
 
-          <div className="flex-1 relative bg-gradient-to-br from-green-900 to-green-800">
-            <svg className="absolute inset-0 w-full h-full">
-              <rect x="50" y="50" width="700" height="400" fill="#8B4513" stroke="#654321" strokeWidth="4" />
+          <div className="flex-1 relative" style={{ backgroundColor: '#2d5016' }}>
+            <div 
+              className="absolute"
+              style={{
+                left: '50px',
+                top: '50px',
+                width: '700px',
+                height: '400px',
+                backgroundColor: '#8b6b4a',
+                backgroundImage: `
+                  repeating-linear-gradient(to right, #00000022 0 1px, transparent 1px 32px),
+                  repeating-linear-gradient(to bottom, #00000022 0 1px, transparent 1px 32px)
+                `,
+                backgroundSize: '32px 32px',
+                border: '4px solid #654321'
+              }}
+            />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none">
               <text x="400" y="30" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">
                 Town Hall
               </text>
             </svg>
+
+            <div
+              className="absolute"
+              style={{
+                left: `${50 + LECTERN.gridX * CELL_SIZE}px`,
+                top: `${50 + LECTERN.gridY * CELL_SIZE}px`,
+                width: `${CELL_SIZE}px`,
+                height: `${CELL_SIZE}px`,
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: '#654321',
+                border: '2px solid #8B4513',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px'
+              }}
+            >
+              🎤
+            </div>
 
             {trajectory.characters.map(char => {
               const pos = characterPositions[char.id]
@@ -442,7 +582,7 @@ function App() {
                     width: `${SPRITE_FRAME_WIDTH * 2}px`,
                     height: `${SPRITE_FRAME_HEIGHT * 2}px`,
                     backgroundImage: `url(/characters/${currentCharacter.sprite})`,
-                    backgroundPosition: `-${SPRITE_FRAME_WIDTH}px 0px`,
+                    backgroundPosition: `-${SPRITE_FRAME_WIDTH * 1 * 2}px -${SPRITE_FRAME_HEIGHT * 0 * 2}px`,
                     backgroundSize: `${SPRITE_FRAME_WIDTH * 3 * 2}px ${SPRITE_FRAME_HEIGHT * 4 * 2}px`,
                     backgroundRepeat: 'no-repeat',
                     imageRendering: 'pixelated'
