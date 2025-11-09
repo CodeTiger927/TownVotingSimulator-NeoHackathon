@@ -10,6 +10,7 @@ import re
 from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
+import asyncio
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ from dotenv import load_dotenv
 from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
 
 load_dotenv()
+
 
 app = FastAPI(title="Town Voting Simulator API")
 
@@ -366,7 +368,7 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 
                 result = await resp.json()
                 response = result["choices"][0]["message"]["content"]
-                return strip_think_tags(response)
+                return (response)
     
     except aiohttp.ClientError as e:
         error_msg = f"Network error: {str(e)}"
@@ -545,13 +547,23 @@ async def town_hall_conversation(request: TownHallRequest):
     
     # Generate or use provided opening statements for politicians
     # print("trying to get opening statements for politicians")
-    p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
-    p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
+    if request.topic == "budget":
+        p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. The budget is allocated to the following areas: police, schools, welfare, health, and government.
+    You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+        p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
 
-    p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
-You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
-    p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
+        p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
+    You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+        p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
+
+    else:
+        p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
+    You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+        p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
+
+        p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
+    You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+        p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
 
     # Add politician opening statements to town hall history
     town_hall_history.append({

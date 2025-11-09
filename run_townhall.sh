@@ -93,7 +93,7 @@ try:
         print(f\"\n{agent} (Round {round_num}):\")
         print(f\"  [DEBUG: Original length: {original_length}, After strip: {len(message)}]\")
         if message:
-            print(f\"  {message[:300]}{'...' if len(message) > 300 else ''}\")
+            print(f\"  {message[:1000]}{'...' if len(message) > 1000 else ''}\")
         else:
             print(f\"  [No response or response was only thinking]\")
     
