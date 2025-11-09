@@ -13,6 +13,15 @@ from pathlib import Path
 
 app = modal.App("townhall-verl-training")
 
+src_mount = modal.Mount.from_local_dir(
+    ".",
+    remote_path="/root",
+    condition=lambda pth: not any(
+        part in pth.split("/")
+        for part in [".git", "__pycache__", ".pytest_cache", "node_modules", ".venv"]
+    ),
+)
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -53,45 +62,10 @@ backend_volume = modal.Volume.from_name("townhall-backend-data", create_if_missi
     image=image,
     gpu=None,
     scaledown_window=300,
-)
-@modal.concurrent(100)
-@modal.fastapi_endpoint(method="POST")
-async def backend_web_endpoint(request_data: dict):
-    """
-    FastAPI backend endpoint for the town hall simulation.
-    This serves the RL environment that veRL will interact with.
-    """
-    import sys
-    sys.path.insert(0, "/root")
-    
-    from main import app as fastapi_app
-    from fastapi.testclient import TestClient
-    
-    client = TestClient(fastapi_app)
-    
-    path = request_data.get("path", "/")
-    method = request_data.get("method", "GET")
-    json_data = request_data.get("json")
-    
-    if method == "POST":
-        response = client.post(path, json=json_data)
-    else:
-        response = client.get(path)
-    
-    return {
-        "status_code": response.status_code,
-        "json": response.json() if response.status_code == 200 else None,
-        "text": response.text if response.status_code != 200 else None
-    }
-
-
-@app.function(
-    image=image,
-    gpu=None,
-    scaledown_window=300,
     volumes={"/data": backend_volume},
+    mounts=[src_mount],
 )
-@modal.concurrent(100)
+@modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def backend_asgi():
     """
@@ -110,6 +84,7 @@ def backend_asgi():
     gpu="H100:8",
     timeout=3600 * 4,
     volumes={"/data": backend_volume},
+    mounts=[src_mount],
 )
 def run_verl_training(
     backend_url: str,
