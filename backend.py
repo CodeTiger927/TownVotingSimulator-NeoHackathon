@@ -304,15 +304,26 @@ def call_qwen_chat(messages, temperature: float = 0.7, max_tokens: int = 512) ->
                 "content": msg["content"]
             })
     
+    extended_system_prompt = system_prompt + "\n\nBefore responding, think through your answer carefully inside <thinking> tags. Consider multiple perspectives and reasoning steps. Then provide your final response outside the thinking tags."
+    
+    if claude_messages and claude_messages[-1]["role"] == "user":
+        claude_messages[-1]["content"] += "\n\nTake your time to think through this carefully before responding."
+    
+    extended_max_tokens = max_tokens + 800
+    
     response = anthropic_client.messages.create(
-        model="claude-3-sonnet-20240229",
-        max_tokens=max_tokens,
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=extended_max_tokens,
         temperature=temperature,
-        system=system_prompt,
+        system=extended_system_prompt,
         messages=claude_messages
     )
     
-    return response.content[0].text
+    response_text = response.content[0].text
+    import re
+    response_text = re.sub(r'<thinking>.*?</thinking>', '', response_text, flags=re.DOTALL | re.IGNORECASE)
+    response_text = re.sub(r'<think>.*?</think>', '', response_text, flags=re.DOTALL | re.IGNORECASE)
+    return response_text.strip()
 
 
 # ---------- FastAPI app ----------

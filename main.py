@@ -327,9 +327,10 @@ class TownHallRequest(BaseModel):
 async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
     """
     Call Claude through the Anthropic API with the given system prompt and messages.
+    Uses extended thinking mode for better reasoning.
     Falls back to mock responses if API key is not configured.
     """
-    print("calling llm with Claude")
+    print("calling llm with Claude Sonnet 4.5 (extended thinking)")
     if not ANTHROPIC_API_KEY:
         return f"[Mock response] I understand your message. As an agent, I have my own views on this matter."
     
@@ -342,15 +343,21 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                     "content": msg["content"]
                 })
         
-        if response_format and response_format.get("type") == "json_object":
-            if claude_messages and claude_messages[-1]["role"] == "user":
-                claude_messages[-1]["content"] += "\n\nRespond with valid JSON only."
+        extended_system_prompt = system_prompt + "\n\nBefore responding, think through your answer carefully inside <thinking> tags. Consider multiple perspectives and reasoning steps. Then provide your final response outside the thinking tags."
+        
+        if claude_messages and claude_messages[-1]["role"] == "user":
+            if response_format and response_format.get("type") == "json_object":
+                claude_messages[-1]["content"] += "\n\nThink carefully about your response, then respond with valid JSON only."
+            else:
+                claude_messages[-1]["content"] += "\n\nTake your time to think through this carefully before responding."
+        
+        extended_max_tokens = max_tokens + 800
         
         response = await anthropic_client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=max_tokens,
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=extended_max_tokens,
             temperature=temperature,
-            system=system_prompt,
+            system=extended_system_prompt,
             messages=claude_messages
         )
         
