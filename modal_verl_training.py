@@ -287,6 +287,78 @@ def run_verl_training(
         }
 
 
+@app.function(
+    image=verl_image,
+    gpu=None,
+    timeout=300,
+)
+def check_verl_config():
+    """
+    Check veRL's Hydra config structure to understand available groups and keys.
+    """
+    import subprocess
+    import sys
+    import os
+    
+    print("="*80)
+    print("Checking veRL installation and config structure")
+    print("="*80 + "\n")
+    
+    try:
+        import verl
+        verl_dir = os.path.dirname(verl.__file__)
+        print(f"veRL installed at: {verl_dir}\n")
+        
+        config_path = os.path.join(verl_dir, "config")
+        if os.path.exists(config_path):
+            print(f"Config directory found at: {config_path}")
+            print("Config files:")
+            for root, dirs, files in os.walk(config_path):
+                for file in files:
+                    if file.endswith('.yaml'):
+                        filepath = os.path.join(root, file)
+                        print(f"  - {filepath}")
+            print()
+    except Exception as e:
+        print(f"Error finding veRL: {e}\n")
+    
+    print("="*80)
+    print("Running: python -m verl.trainer.main_ppo --help")
+    print("="*80 + "\n")
+    
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "verl.trainer.main_ppo", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        print(result.stdout)
+        if result.stderr:
+            print("STDERR:", result.stderr)
+    except Exception as e:
+        print(f"Error running --help: {e}")
+    
+    print("\n" + "="*80)
+    print("Running: python -m verl.trainer.main_ppo --cfg job")
+    print("="*80 + "\n")
+    
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "verl.trainer.main_ppo", "--cfg", "job"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        print(result.stdout)
+        if result.stderr:
+            print("STDERR:", result.stderr)
+    except Exception as e:
+        print(f"Error running --cfg job: {e}")
+    
+    return {"status": "complete"}
+
+
 @app.local_entrypoint()
 def main(
     num_episodes: int = 5,
