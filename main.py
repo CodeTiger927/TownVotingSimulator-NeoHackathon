@@ -202,6 +202,7 @@ async def get_llm_voting_decision(agent_key: str) -> dict:
     p2_highlights_text = "\n".join(p2_highlights) if p2_highlights else "- No direct interactions"
     
     summary_text = agent_memory.get('summary', '').strip()
+    # print(agent_memory["conversation_history"][-5:])
     if not summary_text:
         summary_text = "No conversations yet. Making decision based on core personality values and politician policies."
     
@@ -212,7 +213,7 @@ SUMMARY OF YOUR MEMORIES:
 
 
 YOUR RECENT MEMORIES:
-{agent_memory["conversation_history"][-5:]["content"]}
+# {[agent_memory["conversation_history"][-5:][i]["content"] for i in range(len(agent_memory["conversation_history"][-5:]))]}
 
 
 YOUR RECENT INTERACTIONS:
@@ -347,7 +348,7 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 claude_messages[-1]["content"] += "\n\nRespond with valid JSON only."
         
         response = await anthropic_client.messages.create(
-            model="claude-3-sonnet-20240229",
+            model="claude-sonnet-4-5-20250929",
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
