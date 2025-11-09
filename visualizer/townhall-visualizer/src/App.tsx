@@ -190,7 +190,7 @@ function App() {
           }
           
           if (pos.path.length === 0) {
-            if (!isCurrentSpeaker && Math.random() < 0.3) {
+            if (!isCurrentSpeaker && speakerState !== 'moving_to_lectern' && speakerState !== 'speaking' && speakerState !== 'leaving_lectern' && Math.random() < 0.3) {
               const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
               const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
               
@@ -205,7 +205,7 @@ function App() {
                 pos.isMoving = true
               }
             }
-          } else {
+          }else {
             const nextCell = pos.path[0]
             const nextKey = `${nextCell.x},${nextCell.y}`
             
@@ -247,9 +247,13 @@ function App() {
           const spot = getLecternSpot()
           if (speakerState === 'moving_to_lectern' && isCurrentSpeaker && 
               pos.gridX === spot.x && pos.gridY === spot.y) {
+            console.log('ARRIVED AT LECTERN:', char.id, 'at', pos.gridX, pos.gridY)
+            pos.path = []
             pos.isMoving = false
             pos.animFrame = 1
             pos.direction = 'down'
+            pos.targetGridX = pos.gridX
+            pos.targetGridY = pos.gridY
             setSpeakerState('speaking')
           }
           
@@ -277,6 +281,7 @@ function App() {
           
           if (lecternOccupiedBy === char.id && speakerState === 'speaking') {
             pos.animFrame = 1
+            pos.isMoving = false
           } else if (pos.isMoving) {
             pos.animFrame = (pos.animFrame + 1) % 3
           } else {
