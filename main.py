@@ -35,12 +35,12 @@ agent_memories: Dict[str, dict] = {}
 
 politician_policies: Dict[str, dict] = {
     "politician_1": {
-        "name": "Politician 1",
+        "name": "Alex",
         "immigration_policy": "",
         "budget_policy": {}
     },
     "politician_2": {
-        "name": "Politician 2",
+        "name": "Anthony",
         "immigration_policy": "",
         "budget_policy": {}
     }
@@ -109,7 +109,13 @@ initialize_agents()
 
 def strip_think_tags(text: str) -> str:
     """Remove <think> tags and their content from model output."""
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Remove <think>...</think> tags (case insensitive)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove <thinking>...</thinking> tags
+    text = re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove any remaining unclosed think tags at the start
+    text = re.sub(r'^<think>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'^<thinking>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
     return text.strip()
 
 
@@ -156,12 +162,12 @@ async def get_llm_voting_decision(agent_key: str) -> dict:
     p1_policy = politician_policies["politician_1"]
     p2_policy = politician_policies["politician_2"]
     
-    p1_summary = f"Politician 1: Immigration - {p1_policy.get('immigration_policy', 'Not stated')}. "
+    p1_summary = f"Alex: Immigration - {p1_policy.get('immigration_policy', 'Not stated')}. "
     if p1_policy.get('budget_policy'):
         budget_items = [f"{k}: {v}" for k, v in list(p1_policy['budget_policy'].items())[:3]]
         p1_summary += f"Budget - {', '.join(budget_items)}"
     
-    p2_summary = f"Politician 2: Immigration - {p2_policy.get('immigration_policy', 'Not stated')}. "
+    p2_summary = f"Anthony: Immigration - {p2_policy.get('immigration_policy', 'Not stated')}. "
     if p2_policy.get('budget_policy'):
         budget_items = [f"{k}: {v}" for k, v in list(p2_policy['budget_policy'].items())[:3]]
         p2_summary += f"Budget - {', '.join(budget_items)}"
@@ -170,7 +176,7 @@ async def get_llm_voting_decision(agent_key: str) -> dict:
     p2_highlights = []
     
     for msg in agent_memory["conversation_history"][-20:]:
-        if msg.get("politician_id") == "politician_1" or msg.get("role") == "townhall":
+        if msg.get("politician_id") == "politician_1":
             content = msg.get("content", "")[:150]
             if content and len(p1_highlights) < 3:
                 p1_highlights.append(f"- {content}")
@@ -197,10 +203,10 @@ POLITICIAN POLICIES:
 {p2_summary}
 
 YOUR RECENT INTERACTIONS:
-With Politician 1:
+With Alex:
 {p1_highlights_text}
 
-With Politician 2:
+With Anthony:
 {p2_highlights_text}
 
 Based on your personality, values, and the context above, decide who you would vote for. Consider which politician's policies and messages align better with your core values and concerns.
@@ -210,6 +216,11 @@ Respond with a JSON object in this exact format:
 
 The vote field must be exactly one of: politician_1, politician_2, or undecided
 The confidence field must be exactly one of: low, medium, or high"""
+    # print("p1_summary: ", p1_summary)
+    # print("p2_summary: ", p2_summary)
+    # print("p1_highlights_text: ", p1_highlights_text)
+    # print("p2_highlights_text: ", p2_highlights_text)
+    # print("summary_text: ", summary_text)
     
     messages = [{"role": "user", "content": voting_prompt}]
     
@@ -269,78 +280,6 @@ The confidence field must be exactly one of: low, medium, or high"""
         }
 
 
-def calculate_persuasion_delta(agent_key: str, message: str, topic: str) -> int:
-    """
-    Calculate persuasion delta based on message content and agent preferences.
-    Returns a value between -3 and +3.
-    """
-    message_lower = message.lower()
-    weights = AGENT_POLICY_WEIGHTS.get(agent_key, {})
-    delta = 0
-    
-    if "increase" in message_lower or "more" in message_lower or "expand" in message_lower:
-        if "welfare" in message_lower:
-            delta += weights.get("welfare", 0)
-        if "school" in message_lower or "education" in message_lower:
-            delta += weights.get("schools", 0)
-        if "health" in message_lower or "healthcare" in message_lower:
-            delta += weights.get("health", 0)
-        if "police" in message_lower or "defense" in message_lower or "security" in message_lower:
-            delta += weights.get("police", 0)
-    
-    if "decrease" in message_lower or "cut" in message_lower or "reduce" in message_lower:
-        if "police" in message_lower or "defense" in message_lower:
-            delta -= weights.get("police", 0)  # Negative of negative = positive for anti-police agents
-    
-    if "immigration" in message_lower or "immigrant" in message_lower:
-        if "open" in message_lower or "welcome" in message_lower or "diversity" in message_lower:
-            delta += weights.get("immigration_open", 0)
-        if "restrict" in message_lower or "control" in message_lower or "limit" in message_lower:
-            delta += weights.get("immigration_restrict", 0)
-        if "religion" in message_lower or "faith" in message_lower:
-            delta += weights.get("immigration_religious", 0)
-    
-    return max(-3, min(3, delta))
-
-
-def calculate_policy_compatibility(agent_key: str, politician_id: str) -> int:
-    """
-    Calculate how compatible a politician's stated policies are with an agent's values.
-    Returns a score between -10 and +10.
-    """
-    politician = politician_policies[politician_id]
-    weights = AGENT_POLICY_WEIGHTS.get(agent_key, {})
-    score = 0
-    
-    immigration_policy = politician.get("immigration_policy", "").lower()
-    if immigration_policy:
-        if "open" in immigration_policy or "welcome" in immigration_policy:
-            score += weights.get("immigration_open", 0) * 2
-        if "restrict" in immigration_policy or "control" in immigration_policy:
-            score += weights.get("immigration_restrict", 0) * 2
-        if "religion" in immigration_policy or "faith" in immigration_policy:
-            score += weights.get("immigration_religious", 0) * 2
-    
-    budget_policy = politician.get("budget_policy", {})
-    for category, stance in budget_policy.items():
-        category_lower = category.lower()
-        stance_lower = stance.lower()
-        
-        weight_key = category_lower
-        if category_lower in ["police", "defense", "security"]:
-            weight_key = "police"
-        elif category_lower in ["school", "schools", "education"]:
-            weight_key = "schools"
-        elif category_lower in ["health", "healthcare"]:
-            weight_key = "health"
-        
-        if "increase" in stance_lower or "more" in stance_lower:
-            score += weights.get(weight_key, 0) * 2
-        elif "decrease" in stance_lower or "less" in stance_lower:
-            score -= weights.get(weight_key, 0) * 2
-    
-    return max(-10, min(10, score))
-
 
 class TalkRequest(BaseModel):
     agent_name: str
@@ -366,9 +305,9 @@ class VoteRequest(BaseModel):
 
 
 class TownHallRequest(BaseModel):
-    politician_1_message: str
-    politician_2_message: str
+
     topic: str
+    num_rounds: int = 1
 
 
 async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
@@ -376,11 +315,16 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
     Call the Modal inference endpoint with the given system prompt and messages.
     Falls back to mock responses if Modal is not configured.
     """
+    print("calling llm")
     if not MODAL_INFERENCE_URL:
         return f"[Mock response] I understand your message. As an agent, I have my own views on this matter."
     
     try:
         full_messages = [{"role": "system", "content": system_prompt}] + messages
+        
+        # Ensure URL doesn't have trailing slash
+        base_url = MODAL_INFERENCE_URL.rstrip('/')
+        endpoint = f"{base_url}/v1/chat/completions"
         
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -389,6 +333,7 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 "stream": False,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "enable_thinking": False,
                 "top_p": 1.0
             }
             
@@ -396,28 +341,52 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 payload["response_format"] = response_format
             
             async with session.post(
-                f"{MODAL_INFERENCE_URL}/v1/chat/completions",
+                endpoint,
                 json=payload,
                 headers={"Content-Type": "application/json"}
             ) as resp:
                 if resp.status != 200:
-                    raise HTTPException(status_code=500, detail=f"Modal inference failed: {resp.status}")
+                    # Try to get error details
+                    error_text = await resp.text()
+                    error_detail = f"Modal inference failed: {resp.status}"
+                    try:
+                        error_json = await resp.json()
+                        if error_json:
+                            error_detail += f" - {error_json}"
+                    except:
+                        if error_text:
+                            error_detail += f" - {error_text[:200]}"
+                    
+                    print(f"ERROR: {error_detail}")
+                    print(f"Endpoint: {endpoint}")
+                    print(f"Payload keys: {list(payload.keys())}")
+                    
+                    # Return mock response instead of raising exception to allow simulation to continue
+                    return f"[Mock response due to error: {error_detail}] I understand your message."
                 
                 result = await resp.json()
                 response = result["choices"][0]["message"]["content"]
                 return strip_think_tags(response)
     
+    except aiohttp.ClientError as e:
+        error_msg = f"Network error: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        return f"[Mock response due to error: {error_msg}] I understand your message."
     except Exception as e:
-        return f"[Mock response due to error: {str(e)}] I understand your message."
+        error_msg = f"Unexpected error: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        return f"[Mock response due to error: {error_msg}] I understand your message."
 
 
 
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
+    modal_status = "configured" if MODAL_INFERENCE_URL else "not configured"
     return {
         "message": "Town Voting Simulator API",
         "version": "1.0.0",
+        "modal_inference": modal_status,
         "endpoints": {
             "GET /agents": "List all agents",
             "GET /agent/{agent_name}": "Get agent state",
@@ -427,7 +396,8 @@ async def root():
             "GET /politicians": "Get politician policies",
             "POST /politician/policy": "Update politician policy",
             "POST /vote": "Cast a vote",
-            "GET /results": "Get voting results"
+            "GET /results": "Get voting results",
+            "GET /debug/modal": "Test Modal connection"
         }
     }
 
@@ -483,9 +453,6 @@ async def talk_to_agent(request: TalkRequest):
     
     response = await call_llm(agent_config["system_prompt"], conversation_messages)
     
-    persuasion_delta = calculate_persuasion_delta(request.agent_name, request.message, "general")
-    agent_memory["persuasion"][request.politician_id] += persuasion_delta
-    agent_memory["persuasion"][request.politician_id] = max(-10, min(10, agent_memory["persuasion"][request.politician_id]))
     
     agent_memory["conversation_history"].append({
         "role": "user",
@@ -504,8 +471,6 @@ async def talk_to_agent(request: TalkRequest):
     return {
         "agent": agent_config["full_name"],
         "response": response,
-        "persuasion_delta": persuasion_delta,
-        "current_persuasion": agent_memory["persuasion"][request.politician_id],
         "memory_updated": True
     }
 
@@ -533,11 +498,7 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
         
         conversation_messages = [{"role": "user", "content": process_prompt}]
         response = await call_llm(agent_config["system_prompt"], conversation_messages)
-        
-        persuasion_delta = calculate_persuasion_delta(agent_key, request.message, request.topic)
-        agent_memory["persuasion"][request.politician_id] += persuasion_delta
-        agent_memory["persuasion"][request.politician_id] = max(-10, min(10, agent_memory["persuasion"][request.politician_id]))
-        
+                
         agent_memory["conversation_history"].append({
             "role": "broadcast",
             "content": request.message,
@@ -556,8 +517,6 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
         responses[agent_key] = {
             "agent": agent_config["full_name"],
             "reaction": response,
-            "persuasion_delta": persuasion_delta,
-            "current_persuasion": agent_memory["persuasion"][request.politician_id]
         }
     
     return {
@@ -570,71 +529,165 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
 @app.post("/townhall")
 async def town_hall_conversation(request: TownHallRequest):
     """
-    Town hall style conversation where both politicians present on a topic,
-    then agents respond in randomized order.
-    Updates persuasion scores based on both politicians' messages.
+    Town hall style conversation where all agents (including politicians) participate
+    in a progressive discussion. Each agent sees the full conversation history.
     """
-    agent_keys = list(AGENT_CONFIGS.keys())
-    random.shuffle(agent_keys)
+    # Get all agent keys (including politicians)
+    all_agent_keys = list(AGENT_CONFIGS.keys())
     
-    responses = []
+    # Build conversation history that will be shared across all agents
+    town_hall_history = []
+    all_responses = []
     
-    for agent_key in agent_keys:
-        agent_config = AGENT_CONFIGS[agent_key]
+    # Round 1: Politicians give opening statements
+    politician_1_config = AGENT_CONFIGS["politician_1"]
+    politician_2_config = AGENT_CONFIGS["politician_2"]
+    
+    # Generate or use provided opening statements for politicians
+    # print("trying to get opening statements for politicians")
+    p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+    p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
+
+    p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+    p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
+
+    # Add politician opening statements to town hall history
+    town_hall_history.append({
+        "speaker": "politician_1",
+        "speaker_name": politician_1_config["full_name"],
+        "content": p1_message,
+        "timestamp": datetime.now().isoformat()
+    })
+    town_hall_history.append({
+        "speaker": "politician_2",
+        "speaker_name": politician_2_config["full_name"],
+        "content": p2_message,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # Update all agent memories with politicians' opening statements
+    for agent_key in all_agent_keys:
         agent_memory = agent_memories[agent_key]
-        
-        town_hall_prompt = f"""This is a town hall meeting about {request.topic}.
-
-Politician 1 says: "{request.politician_1_message}"
-
-Politician 2 says: "{request.politician_2_message}"
-
-What is your response or question to the politicians? (Respond in character, briefly.)"""
-        
-        conversation_messages = [{"role": "user", "content": town_hall_prompt}]
-        response = await call_llm(agent_config["system_prompt"], conversation_messages)
-        
-        delta_1 = calculate_persuasion_delta(agent_key, request.politician_1_message, request.topic)
-        delta_2 = calculate_persuasion_delta(agent_key, request.politician_2_message, request.topic)
-        
-        agent_memory["persuasion"]["politician_1"] += delta_1
-        agent_memory["persuasion"]["politician_2"] += delta_2
-        agent_memory["persuasion"]["politician_1"] = max(-10, min(10, agent_memory["persuasion"]["politician_1"]))
-        agent_memory["persuasion"]["politician_2"] = max(-10, min(10, agent_memory["persuasion"]["politician_2"]))
-        
+        # Villagers' memories - record both politicians' opening statements
         agent_memory["conversation_history"].append({
             "role": "townhall",
-            "politician_1_message": request.politician_1_message,
-            "politician_2_message": request.politician_2_message,
+            "content": p1_message,
+            "speaker": "politician_1",
+            "speaker_name": politician_1_config["full_name"],
+            "politician_id": "politician_1",
             "topic": request.topic,
             "timestamp": datetime.now().isoformat()
         })
         agent_memory["conversation_history"].append({
-            "role": "assistant",
-            "content": response,
+            "role": "townhall",
+            "content": p2_message,
+            "speaker": "politician_2",
+            "speaker_name": politician_2_config["full_name"],
+            "politician_id": "politician_2",
+            "topic": request.topic,
             "timestamp": datetime.now().isoformat()
         })
+    
+    await update_agent_summary("politician_1")
+    await update_agent_summary("politician_2")
+    
+    all_responses.append({
+        "agent": politician_1_config["full_name"],
+        "agent_key": "politician_1",
+        "response": p1_message,
+        "round": 1
+    })
+    all_responses.append({
+        "agent": politician_2_config["full_name"],
+        "agent_key": "politician_2",
+        "response": p2_message,
+        "round": 1
+    })
+    
+    # Subsequent rounds: All agents participate in randomized order
+    for round_num in range(1, request.num_rounds + 1):
+        # Shuffle order for this round
+        round_agent_keys = [k for k in all_agent_keys]
+        random.shuffle(round_agent_keys)
         
-        await update_agent_summary(agent_key)
-        
-        responses.append({
-            "agent": agent_config["full_name"],
-            "agent_key": agent_key,
-            "response": response,
-            "persuasion_deltas": {
-                "politician_1": delta_1,
-                "politician_2": delta_2
-            },
-            "current_persuasion": {
-                "politician_1": agent_memory["persuasion"]["politician_1"],
-                "politician_2": agent_memory["persuasion"]["politician_2"]
-            }
-        })
+        for agent_key in round_agent_keys:
+            agent_config = AGENT_CONFIGS[agent_key]
+            agent_memory = agent_memories[agent_key]
+            
+            # Build conversation context from town hall history
+            conversation_context = f"This is a town hall meeting about {request.topic}.\n\n"
+            conversation_context += "Here's what has been said so far:\n\n"
+            
+            for msg in town_hall_history:
+                conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
+            
+            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
+            
+            # Build messages for LLM with full conversation history
+            conversation_messages = []
+            
+            # Add recent conversation history from agent's memory (last 5 messages)
+            for msg in agent_memory["conversation_history"][-5:]:
+                if msg.get("role") == "user":
+                    conversation_messages.append({"role": "user", "content": msg.get("content", "")})
+                elif msg.get("role") == "assistant":
+                    conversation_messages.append({"role": "assistant", "content": msg.get("content", "")})
+            
+            # Add the town hall context
+            conversation_messages.append({"role": "user", "content": conversation_context})
+            
+            # Get agent's response
+            response = await call_llm(agent_config["system_prompt"], conversation_messages)
+            
+            # Add to town hall history
+            town_hall_history.append({
+                "speaker": agent_key,
+                "speaker_name": agent_config["full_name"],
+                "content": response,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            # Update all agents' memories with this new statement
+            for other_agent_key in all_agent_keys:
+                other_agent_memory = agent_memories[other_agent_key]
+                
+                if other_agent_key == agent_key:
+                    # This is the speaker's own memory - add as assistant
+                    other_agent_memory["conversation_history"].append({
+                        "role": "assistant",
+                        "content": response,
+                        "speaker": agent_key,
+                        "speaker_name": agent_config["full_name"],
+                        "topic": request.topic,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                else:
+                    # This is another agent hearing this statement - add as townhall with speaker info
+                    other_agent_memory["conversation_history"].append({
+                        "role": "townhall",
+                        "content": response,
+                        "speaker": agent_key,
+                        "speaker_name": agent_config["full_name"],
+                        "politician_id": agent_key if agent_key in ["politician_1", "politician_2"] else None,
+                        "topic": request.topic,
+                        "timestamp": datetime.now().isoformat()
+                    })
+            
+            await update_agent_summary(agent_key)
+            
+            all_responses.append({
+                "agent": agent_config["full_name"],
+                "agent_key": agent_key,
+                "response": response,
+                "round": round_num + 1
+            })
     
     return {
         "topic": request.topic,
-        "agent_responses": responses,
-        "order": [AGENT_CONFIGS[key]["full_name"] for key in agent_keys]
+        "agent_responses": all_responses,
+        "conversation_history": town_hall_history
     }
 
 
@@ -750,16 +803,6 @@ async def debug_agent(agent_name: str):
     agent_memory = agent_memories[agent_name]
     agent_config = AGENT_CONFIGS[agent_name]
     
-    compatibility_scores = {
-        "politician_1": calculate_policy_compatibility(agent_name, "politician_1"),
-        "politician_2": calculate_policy_compatibility(agent_name, "politician_2")
-    }
-    
-    total_scores = {}
-    for politician_id in ["politician_1", "politician_2"]:
-        persuasion = agent_memory["persuasion"].get(politician_id, 0)
-        compatibility = compatibility_scores[politician_id]
-        total_scores[politician_id] = persuasion + compatibility
     
     return {
         "agent": agent_config["full_name"],
@@ -769,12 +812,6 @@ async def debug_agent(agent_name: str):
         "current_vote": agent_memory.get("voting_preference"),
         "memory_summary": agent_memory.get("summary", "No summary yet"),
         "conversation_count": len(agent_memory["conversation_history"]),
-        "legacy_scores": {
-            "persuasion": agent_memory["persuasion"],
-            "policy_compatibility": compatibility_scores,
-            "total_scores": total_scores,
-            "note": "These numerical scores are kept for debugging but not used for voting decisions"
-        }
     }
 
 
@@ -790,19 +827,20 @@ async def get_voting_results():
     vote_details = []
     
     for agent_key, agent_memory in agent_memories.items():
-        vote = agent_memory.get("voting_preference")
-        agent_name = AGENT_CONFIGS[agent_key]["full_name"]
+        if agent_key != "politician_1" and agent_key != "politician_2":
+            vote = agent_memory.get("voting_preference")
+            agent_name = AGENT_CONFIGS[agent_key]["full_name"]
+            
+            if vote == "politician_1":
+                votes["politician_1"] += 1
+                vote_details.append({"agent": agent_name, "vote": "Alex"})
+            elif vote == "politician_2":
+                votes["politician_2"] += 1  
+                vote_details.append({"agent": agent_name, "vote": "Anthony"})
+            else:
+                votes["undecided"] += 1
+                vote_details.append({"agent": agent_name, "vote": "Undecided"})
         
-        if vote == "politician_1":
-            votes["politician_1"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Politician 1"})
-        elif vote == "politician_2":
-            votes["politician_2"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Politician 2"})
-        else:
-            votes["undecided"] += 1
-            vote_details.append({"agent": agent_name, "vote": "Undecided"})
-    
     return {
         "total_agents": len(AGENT_CONFIGS),
         "votes": votes,
@@ -818,12 +856,12 @@ async def reset_simulation():
     initialize_agents()
     
     politician_policies["politician_1"] = {
-        "name": "Politician 1",
+        "name": "Alex",
         "immigration_policy": "",
         "budget_policy": {}
     }
     politician_policies["politician_2"] = {
-        "name": "Politician 2",
+        "name": "Anthony",
         "immigration_policy": "",
         "budget_policy": {}
     }
