@@ -94,11 +94,14 @@ def initialize_agents():
     for agent_key in AGENT_CONFIGS.keys():
         if agent_key not in agent_memories:
             memory = get_initial_memory(agent_key)
-            # Add persuasion tracking for each politician
             memory["persuasion"] = {
                 "politician_1": 0,
                 "politician_2": 0
             }
+            agent_config = AGENT_CONFIGS[agent_key]
+            memory["summary"] = f"Core values: {agent_config['name']} with established personality and policy preferences."
+            memory["llm_decision"] = None
+            memory["last_llm_raw_response"] = None
             agent_memories[agent_key] = memory
 
 initialize_agents()
@@ -108,6 +111,162 @@ def strip_think_tags(text: str) -> str:
     """Remove <think> tags and their content from model output."""
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
     return text.strip()
+
+
+async def update_agent_summary(agent_key: str):
+    """
+    Update an agent's memory summary using the LLM.
+    Creates a brief summary of their current values, concerns, and any shifts.
+    """
+    agent_config = AGENT_CONFIGS[agent_key]
+    agent_memory = agent_memories[agent_key]
+    
+    recent_history = agent_memory["conversation_history"][-10:]
+    
+    if not recent_history:
+        agent_memory["summary"] = f"No conversations yet. Core values: {agent_config['name']} with their established personality."
+        return
+    
+    history_text = "\n".join([
+        f"- {msg.get('role', 'unknown')}: {msg.get('content', '')[:200]}"
+        for msg in recent_history
+    ])
+    
+    summarization_prompt = f"""Based on the recent conversations below, write a brief 2-3 sentence summary of this person's current stance, key concerns, and any shifts in their thinking. Focus on what matters most to them regarding immigration and budget policies.
+
+Recent conversations:
+{history_text}
+
+Output ONLY the summary, no other text."""
+    
+    messages = [{"role": "user", "content": summarization_prompt}]
+    summary = await call_llm(agent_config["system_prompt"], messages)
+    
+    agent_memory["summary"] = summary[:500]  # Cap at 500 chars
+
+
+async def get_llm_voting_decision(agent_key: str) -> dict:
+    """
+    Use the LLM to make a voting decision based on agent context and persona.
+    Returns a dict with: vote, rationale, confidence
+    """
+    agent_config = AGENT_CONFIGS[agent_key]
+    agent_memory = agent_memories[agent_key]
+    
+    p1_policy = politician_policies["politician_1"]
+    p2_policy = politician_policies["politician_2"]
+    
+    p1_summary = f"Politician 1: Immigration - {p1_policy.get('immigration_policy', 'Not stated')}. "
+    if p1_policy.get('budget_policy'):
+        budget_items = [f"{k}: {v}" for k, v in list(p1_policy['budget_policy'].items())[:3]]
+        p1_summary += f"Budget - {', '.join(budget_items)}"
+    
+    p2_summary = f"Politician 2: Immigration - {p2_policy.get('immigration_policy', 'Not stated')}. "
+    if p2_policy.get('budget_policy'):
+        budget_items = [f"{k}: {v}" for k, v in list(p2_policy['budget_policy'].items())[:3]]
+        p2_summary += f"Budget - {', '.join(budget_items)}"
+    
+    p1_highlights = []
+    p2_highlights = []
+    
+    for msg in agent_memory["conversation_history"][-20:]:
+        if msg.get("politician_id") == "politician_1" or msg.get("role") == "townhall":
+            content = msg.get("content", "")[:150]
+            if content and len(p1_highlights) < 3:
+                p1_highlights.append(f"- {content}")
+        elif msg.get("politician_id") == "politician_2":
+            content = msg.get("content", "")[:150]
+            if content and len(p2_highlights) < 3:
+                p2_highlights.append(f"- {content}")
+    
+    p1_highlights_text = "\n".join(p1_highlights) if p1_highlights else "- No direct interactions"
+    p2_highlights_text = "\n".join(p2_highlights) if p2_highlights else "- No direct interactions"
+    
+    summary_text = agent_memory.get('summary', '').strip()
+    if not summary_text:
+        summary_text = "No conversations yet. Making decision based on core personality values and politician policies."
+    
+    voting_prompt = f"""You are deciding who to vote for in an election. Here is the context:
+
+YOUR CURRENT STANCE:
+{summary_text}
+
+POLITICIAN POLICIES:
+{p1_summary}
+
+{p2_summary}
+
+YOUR RECENT INTERACTIONS:
+With Politician 1:
+{p1_highlights_text}
+
+With Politician 2:
+{p2_highlights_text}
+
+Based on your personality, values, and the context above, decide who you would vote for. Consider which politician's policies and messages align better with your core values and concerns.
+
+Respond with a JSON object in this exact format:
+{{"vote": "politician_1", "rationale": "brief 1-2 sentence explanation", "confidence": "high"}}
+
+The vote field must be exactly one of: politician_1, politician_2, or undecided
+The confidence field must be exactly one of: low, medium, or high"""
+    
+    messages = [{"role": "user", "content": voting_prompt}]
+    
+    try:
+        response = await call_llm(
+            agent_config["system_prompt"], 
+            messages, 
+            temperature=0.3, 
+            max_tokens=200,
+            response_format={"type": "json_object"}
+        )
+        
+        agent_memory["last_llm_raw_response"] = response[:500]
+        
+        response_clean = response.strip()
+        
+        try:
+            decision = json.loads(response_clean)
+        except json.JSONDecodeError:
+            json_matches = list(re.finditer(r'\{[^{}]*"vote"[^{}]*\}', response_clean))
+            if json_matches:
+                last_match = json_matches[-1]
+                try:
+                    decision = json.loads(last_match.group(0))
+                except json.JSONDecodeError:
+                    decision = {
+                        "vote": "undecided",
+                        "rationale": f"Could not parse JSON from: {last_match.group(0)[:100]}",
+                        "confidence": "low"
+                    }
+            else:
+                decision = {
+                    "vote": "undecided",
+                    "rationale": f"No valid JSON found in response",
+                    "confidence": "low"
+                }
+        
+        if decision.get("vote") not in ["politician_1", "politician_2", "undecided"]:
+            decision["vote"] = "undecided"
+        
+        if not decision.get("rationale"):
+            decision["rationale"] = "No rationale provided"
+        
+        if decision.get("confidence") not in ["low", "medium", "high"]:
+            decision["confidence"] = "medium"
+        
+        decision["decided_at"] = datetime.now().isoformat()
+        
+        return decision
+        
+    except Exception as e:
+        return {
+            "vote": "undecided",
+            "rationale": f"Error during decision: {str(e)}",
+            "confidence": "low",
+            "decided_at": datetime.now().isoformat()
+        }
 
 
 def calculate_persuasion_delta(agent_key: str, message: str, topic: str) -> int:
@@ -212,7 +371,7 @@ class TownHallRequest(BaseModel):
     topic: str
 
 
-async def call_llm(system_prompt: str, messages: List[dict]) -> str:
+async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
     """
     Call the Modal inference endpoint with the given system prompt and messages.
     Falls back to mock responses if Modal is not configured.
@@ -228,8 +387,13 @@ async def call_llm(system_prompt: str, messages: List[dict]) -> str:
                 "messages": full_messages,
                 "model": "Qwen/Qwen3-8B-FP8",
                 "stream": False,
-                "max_tokens": 500
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": 1.0
             }
+            
+            if response_format:
+                payload["response_format"] = response_format
             
             async with session.post(
                 f"{MODAL_INFERENCE_URL}/v1/chat/completions",
@@ -335,6 +499,8 @@ async def talk_to_agent(request: TalkRequest):
         "timestamp": datetime.now().isoformat()
     })
     
+    await update_agent_summary(request.agent_name)
+    
     return {
         "agent": agent_config["full_name"],
         "response": response,
@@ -384,6 +550,8 @@ How do you feel about this announcement? What are your thoughts? (Respond in cha
             "content": response,
             "timestamp": datetime.now().isoformat()
         })
+        
+        await update_agent_summary(agent_key)
         
         responses[agent_key] = {
             "agent": agent_config["full_name"],
@@ -446,6 +614,8 @@ What is your response or question to the politicians? (Respond in character, bri
             "content": response,
             "timestamp": datetime.now().isoformat()
         })
+        
+        await update_agent_summary(agent_key)
         
         responses.append({
             "agent": agent_config["full_name"],
@@ -517,50 +687,31 @@ async def cast_vote(request: VoteRequest):
 @app.post("/vote/auto")
 async def auto_vote():
     """
-    Automatically determine each agent's vote based on:
-    1. Persuasion score accumulated from conversations
-    2. Policy compatibility with each politician's stated positions
+    Automatically determine each agent's vote using LLM-based decisions.
+    Each agent makes a voting decision based on their persona, conversation context,
+    and politician policies using the language model.
     
-    Returns detailed breakdown of voting decisions.
+    Returns detailed breakdown of voting decisions with rationale and confidence.
     """
     voting_decisions = []
     
     for agent_key, agent_memory in agent_memories.items():
         agent_name = AGENT_CONFIGS[agent_key]["full_name"]
         
-        # Calculate total scores for each politician
-        scores = {}
-        for politician_id in ["politician_1", "politician_2"]:
-            persuasion = agent_memory["persuasion"].get(politician_id, 0)
-            compatibility = calculate_policy_compatibility(agent_key, politician_id)
-            total_score = persuasion + compatibility
-            
-            scores[politician_id] = {
-                "persuasion": persuasion,
-                "policy_compatibility": compatibility,
-                "total_score": total_score
-            }
+        llm_decision = await get_llm_voting_decision(agent_key)
         
-        if scores["politician_1"]["total_score"] > scores["politician_2"]["total_score"]:
-            vote = "politician_1"
-        elif scores["politician_2"]["total_score"] > scores["politician_1"]["total_score"]:
-            vote = "politician_2"
-        else:
-            vote = None  # Tie = undecided
-        
-        agent_memory["voting_preference"] = vote
+        agent_memory["voting_preference"] = llm_decision["vote"]
+        agent_memory["llm_decision"] = llm_decision
         
         voting_decisions.append({
             "agent": agent_name,
             "agent_key": agent_key,
-            "vote": vote,
-            "scores": scores,
-            "reasoning": f"Persuasion: P1={scores['politician_1']['persuasion']}, P2={scores['politician_2']['persuasion']}; "
-                        f"Policy: P1={scores['politician_1']['policy_compatibility']}, P2={scores['politician_2']['policy_compatibility']}; "
-                        f"Total: P1={scores['politician_1']['total_score']}, P2={scores['politician_2']['total_score']}"
+            "vote": llm_decision["vote"],
+            "rationale": llm_decision["rationale"],
+            "confidence": llm_decision["confidence"],
+            "decided_at": llm_decision["decided_at"]
         })
     
-    # Calculate final results
     votes = {"politician_1": 0, "politician_2": 0, "undecided": 0}
     for decision in voting_decisions:
         if decision["vote"] == "politician_1":
@@ -575,7 +726,7 @@ async def auto_vote():
     
     return {
         "voting_complete": True,
-        "method": "automatic",
+        "method": "llm_based",
         "voting_decisions": voting_decisions,
         "summary": {
             "total_agents": len(AGENT_CONFIGS),
@@ -589,10 +740,9 @@ async def auto_vote():
 async def debug_agent(agent_name: str):
     """
     Debug endpoint to view detailed agent state including:
+    - LLM-based voting decision with rationale
     - Memory summary
-    - Persuasion scores
-    - Policy compatibility scores
-    - Computed vote
+    - Legacy numerical scores (for comparison)
     """
     if agent_name not in AGENT_CONFIGS:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
@@ -600,38 +750,30 @@ async def debug_agent(agent_name: str):
     agent_memory = agent_memories[agent_name]
     agent_config = AGENT_CONFIGS[agent_name]
     
-    # Calculate policy compatibility for both politicians
     compatibility_scores = {
         "politician_1": calculate_policy_compatibility(agent_name, "politician_1"),
         "politician_2": calculate_policy_compatibility(agent_name, "politician_2")
     }
     
-    # Calculate total scores
     total_scores = {}
     for politician_id in ["politician_1", "politician_2"]:
         persuasion = agent_memory["persuasion"].get(politician_id, 0)
         compatibility = compatibility_scores[politician_id]
         total_scores[politician_id] = persuasion + compatibility
     
-    if total_scores["politician_1"] > total_scores["politician_2"]:
-        computed_vote = "politician_1"
-    elif total_scores["politician_2"] > total_scores["politician_1"]:
-        computed_vote = "politician_2"
-    else:
-        computed_vote = "undecided"
-    
     return {
         "agent": agent_config["full_name"],
         "agent_key": agent_name,
-        "persuasion_scores": agent_memory["persuasion"],
-        "policy_compatibility": compatibility_scores,
-        "total_scores": total_scores,
-        "computed_vote": computed_vote,
+        "llm_decision": agent_memory.get("llm_decision"),
+        "last_llm_raw_response": agent_memory.get("last_llm_raw_response"),
         "current_vote": agent_memory.get("voting_preference"),
+        "memory_summary": agent_memory.get("summary", "No summary yet"),
         "conversation_count": len(agent_memory["conversation_history"]),
-        "memory_summary": {
-            "current_stance": agent_memory.get("current_stance"),
-            "key_concerns": agent_memory.get("key_concerns", [])
+        "legacy_scores": {
+            "persuasion": agent_memory["persuasion"],
+            "policy_compatibility": compatibility_scores,
+            "total_scores": total_scores,
+            "note": "These numerical scores are kept for debugging but not used for voting decisions"
         }
     }
 
