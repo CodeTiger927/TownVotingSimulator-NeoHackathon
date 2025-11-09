@@ -749,7 +749,8 @@ function App() {
                     top: `${pos.pixelY}px`,
                     width: `${SPRITE_FRAME_WIDTH}px`,
                     height: `${SPRITE_FRAME_HEIGHT}px`,
-                    transform: 'translate(-50%, -50%)'
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10
                   }}
                 >
                   <div className="relative">
@@ -766,12 +767,12 @@ function App() {
                       }}
                     />
                     {isSpeaking && currentSpeech && (
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 text-black px-2 py-1 rounded-full text-base whitespace-nowrap shadow-lg">
+                      <div className="absolute top-0 left-full ml-2 bg-white/90 text-black px-2 py-1 rounded-full text-base whitespace-nowrap shadow-lg">
                         {currentSpeech.emoji_summary}
                       </div>
                     )}
                   </div>
-                  <div className="text-xs text-center mt-1 bg-black bg-opacity-50 px-1 rounded whitespace-nowrap">
+                  <div className="text-xs text-center mt-1 bg-black bg-opacity-30 px-1 rounded whitespace-nowrap" style={{ position: 'relative', zIndex: 20 }}>
                     {char.name}
                   </div>
                 </div>
