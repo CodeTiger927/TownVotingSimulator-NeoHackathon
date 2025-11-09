@@ -97,6 +97,15 @@ function App() {
   const speakingTimerStartedRef = useRef(false)
   const speakerStateRef = useRef(speakerState)
   const lecternOccupiedByRef = useRef(lecternOccupiedBy)
+  
+  const [typingText, setTypingText] = useState('')
+  const typingIndexRef = useRef(0)
+  const typingTimerRef = useRef<number | null>(null)
+  const holdTimerRef = useRef<number | null>(null)
+  const typingStartedRef = useRef(false)
+  
+  const TYPING_CPS = 30
+  const HOLD_MS = 2000
 
   useEffect(() => {
     speakerStateRef.current = speakerState
@@ -438,25 +447,6 @@ function App() {
       plannedMoveToLecternRef.current = true
     }
 
-    if (speakerState === 'speaking' && !speakingTimerStartedRef.current) {
-      const char = trajectory.characters.find(c => c.id === speakerId)
-      const isPolitician = char && getPoliticianLectern(char.id) !== null
-      
-      const words = speech.message.trim().split(/\s+/).filter(Boolean).length
-      const durationMs = Math.max(2500, Math.min(15000, words * 300))
-
-      if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
-      speechTimerRef.current = window.setTimeout(() => {
-        if (isPolitician) {
-          setSpeakerState('done')
-          setCurrentSpeechIndex(prev => prev + 1)
-        } else {
-          setSpeakerState('leaving_lectern')
-        }
-      }, durationMs)
-      speakingTimerStartedRef.current = true
-    }
-
     if (speakerState === 'leaving_lectern' && !plannedExitRef.current) {
       setCharacterPositions(prev => {
         const newPositions = { ...prev }
@@ -492,6 +482,65 @@ function App() {
     }
   }, [speakerState, isPlaying, trajectory, currentSpeechIndex])
 
+  useEffect(() => {
+    if (!isPlaying || !trajectory || speakerState !== 'speaking') return
+    const speech = trajectory.speeches[currentSpeechIndex]
+    if (!speech) return
+    const speakerId = speech.character_id
+    const char = trajectory.characters.find(c => c.id === speakerId)
+    if (!char) return
+
+    if (!typingStartedRef.current) {
+      typingStartedRef.current = true
+      setTypingText('')
+      typingIndexRef.current = 0
+
+      const message = speech.message
+      const isPolitician = getPoliticianLectern(char.id) !== null
+
+      const typeNextChar = () => {
+        if (typingIndexRef.current < message.length) {
+          const nextChar = message[typingIndexRef.current]
+          setTypingText(prev => prev + nextChar)
+          typingIndexRef.current++
+
+          const isPunctuation = /[.!?,;:]/.test(nextChar)
+          const delay = isPunctuation ? 1000 / (TYPING_CPS / 3) : 1000 / TYPING_CPS
+
+          typingTimerRef.current = window.setTimeout(typeNextChar, delay)
+        } else {
+          holdTimerRef.current = window.setTimeout(() => {
+            if (isPolitician) {
+              setSpeakerState('done')
+              setCurrentSpeechIndex(prev => prev + 1)
+            } else {
+              setSpeakerState('leaving_lectern')
+            }
+          }, HOLD_MS)
+        }
+      }
+
+      typeNextChar()
+    }
+
+    return () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+        typingTimerRef.current = null
+      }
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current)
+        holdTimerRef.current = null
+      }
+    }
+  }, [speakerState, isPlaying, trajectory, currentSpeechIndex, TYPING_CPS, HOLD_MS])
+
+  useEffect(() => {
+    typingStartedRef.current = false
+    setTypingText('')
+    typingIndexRef.current = 0
+  }, [currentSpeechIndex])
+
   const handlePlay = () => {
     setIsPlaying(true)
     if (currentSpeechIndex >= (trajectory?.speeches.length || 0)) {
@@ -506,6 +555,14 @@ function App() {
       clearTimeout(speechTimerRef.current)
       speechTimerRef.current = null
     }
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = null
+    }
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
   }
 
   const handleReset = () => {
@@ -514,9 +571,20 @@ function App() {
     setShowFinalState(false)
     setSpeakerState('done')
     setLecternOccupiedBy(null)
+    setTypingText('')
+    typingIndexRef.current = 0
+    typingStartedRef.current = false
     if (speechTimerRef.current) {
       clearTimeout(speechTimerRef.current)
       speechTimerRef.current = null
+    }
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = null
+    }
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
     }
   }
 
@@ -730,7 +798,12 @@ function App() {
                     <h3 className="text-xl font-bold">{currentSpeech.character_name}</h3>
                     <span className="text-2xl">{currentSpeech.emoji_summary}</span>
                   </div>
-                  <p className="text-gray-300">{currentSpeech.message}</p>
+                  <p className="text-gray-300">
+                    {typingText}
+                    {typingIndexRef.current < currentSpeech.message.length && (
+                      <span className="animate-pulse">▌</span>
+                    )}
+                  </p>
                   <p className="text-sm text-gray-500 mt-2">Round {currentSpeech.round}</p>
                 </div>
               </div>
