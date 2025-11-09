@@ -216,6 +216,18 @@ def run_verl_training(
             "clip_range_value": 0.2,
             "learning_rate": learning_rate,
         },
+        "actor_rollout_ref": {
+            "rollout": {
+                "name": "sglang",
+                "mode": "sync",
+                "multi_turn": True,
+                "multi_turn_interaction_config_path": str(config_dir / "interaction.yaml"),
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50,
+                "repetition_penalty": 1.0,
+            }
+        },
     }
     
     with open(config_dir / "train_ppo.yaml", "w") as f:
