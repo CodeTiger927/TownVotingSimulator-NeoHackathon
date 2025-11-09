@@ -48,6 +48,7 @@ verl_image = (
         "pyzmq",
         "uvloop",
         "fastapi",
+        "openai",
         "sglang",
     )
     .run_commands(
