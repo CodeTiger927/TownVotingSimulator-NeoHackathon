@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Town Hall Simulation Trajectory",
+  "description": "Schema for town hall meeting simulation trajectory data",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "description": "The topic of the town hall meeting"
+        },
+        "num_rounds": {
+          "type": "integer",
+          "description": "Number of rounds in the simulation"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the simulation was run"
+        },
+        "duration_seconds": {
+          "type": "number",
+          "description": "Total duration of the simulation"
+        }
+      },
+      "required": ["topic", "num_rounds", "timestamp"]
+    },
+    "characters": {
+      "type": "array",
+      "description": "List of all characters in the simulation",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the character"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name of the character"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role/occupation of the character"
+          },
+          "sprite": {
+            "type": "string",
+            "description": "Filename of the character sprite"
+          },
+          "initial_position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": ["x", "y"]
+          }
+        },
+        "required": ["id", "name", "role", "sprite", "initial_position"]
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "Chronological list of all events in the simulation",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "description": "Time offset in seconds from start"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["speech", "movement", "vote"],
+            "description": "Type of event"
+          },
+          "character_id": {
+            "type": "string",
+            "description": "ID of the character involved in this event"
+          },
+          "data": {
+            "type": "object",
+            "description": "Event-specific data"
+          }
+        },
+        "required": ["timestamp", "type", "character_id"]
+      }
+    },
+    "speeches": {
+      "type": "array",
+      "description": "All speeches made during the town hall",
+      "items": {
+        "type": "object",
+        "properties": {
+          "round": {
+            "type": "integer",
+            "description": "Round number when this speech occurred"
+          },
+          "character_id": {
+            "type": "string",
+            "description": "ID of the speaking character"
+          },
+          "character_name": {
+            "type": "string",
+            "description": "Name of the speaking character"
+          },
+          "message": {
+            "type": "string",
+            "description": "Full text of the speech"
+          },
+          "emoji_summary": {
+            "type": "string",
+            "description": "Emoji representation of the speech sentiment"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the speech occurred"
+          },
+          "sequence": {
+            "type": "integer",
+            "description": "Sequential order of this speech"
+          }
+        },
+        "required": ["round", "character_id", "character_name", "message", "emoji_summary", "timestamp", "sequence"]
+      }
+    },
+    "final_state": {
+      "type": "object",
+      "description": "Final state after the simulation",
+      "properties": {
+        "voting_results": {
+          "type": "object",
+          "description": "Final voting preferences and results"
+        },
+        "character_interests": {
+          "type": "array",
+          "description": "Each character's final interests and stance",
+          "items": {
+            "type": "object",
+            "properties": {
+              "character_id": {
+                "type": "string"
+              },
+              "character_name": {
+                "type": "string"
+              },
+              "vote_intent": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["metadata", "characters", "events", "speeches", "final_state"]
+}

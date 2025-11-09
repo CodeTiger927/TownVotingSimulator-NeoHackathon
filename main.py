@@ -21,6 +21,9 @@ from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
 
 load_dotenv()
 
+TRAJECTORIES_DIR = Path(__file__).parent / "trajectories"
+TRAJECTORIES_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="Town Voting Simulator API")
 
 app.add_middleware(
@@ -109,14 +112,32 @@ initialize_agents()
 
 def strip_think_tags(text: str) -> str:
     """Remove <think> tags and their content from model output."""
-    # Remove <think>...</think> tags (case insensitive)
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
-    # Remove <thinking>...</thinking> tags
     text = re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL | re.IGNORECASE)
-    # Remove any remaining unclosed think tags at the start
     text = re.sub(r'^<think>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'^<thinking>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
     return text.strip()
+
+
+async def generate_emoji_summary(message: str) -> str:
+    """Generate a short emoji summary of a message using the LLM."""
+    prompt = f"""Summarize the following message using 1-3 emojis that capture its main sentiment and topic.
+Only output the emojis, nothing else.
+
+Message: {message[:200]}
+
+Emojis:"""
+    
+    try:
+        system_prompt = "You are a helpful assistant that summarizes text with emojis."
+        response = await call_llm(system_prompt, [{"role": "user", "content": prompt}], temperature=0.3, max_tokens=20)
+        emojis = response.strip()
+        if len(emojis) > 20:
+            emojis = emojis[:20]
+        return emojis if emojis else "💬"
+    except Exception as e:
+        print(f"Error generating emoji summary: {e}")
+        return "💬"
 
 
 async def update_agent_summary(agent_key: str):
@@ -531,20 +552,20 @@ async def town_hall_conversation(request: TownHallRequest):
     """
     Town hall style conversation where all agents (including politicians) participate
     in a progressive discussion. Each agent sees the full conversation history.
+    Generates a trajectory JSON file for visualization.
     """
-    # Get all agent keys (including politicians)
+    start_time = datetime.now()
+    
     all_agent_keys = list(AGENT_CONFIGS.keys())
     
-    # Build conversation history that will be shared across all agents
     town_hall_history = []
     all_responses = []
+    speeches = []
+    sequence_counter = 0
     
-    # Round 1: Politicians give opening statements
     politician_1_config = AGENT_CONFIGS["politician_1"]
     politician_2_config = AGENT_CONFIGS["politician_2"]
     
-    # Generate or use provided opening statements for politicians
-    # print("trying to get opening statements for politicians")
     p1_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
 You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
     p1_message = await call_llm(politician_1_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
@@ -552,8 +573,10 @@ You are giving your opening statement to the voters. What do you want to say? (R
     p2_opening_prompt = f"""This is a town hall meeting about {request.topic}. 
 You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
     p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
+    
+    p1_emoji = await generate_emoji_summary(p1_message)
+    p2_emoji = await generate_emoji_summary(p2_message)
 
-    # Add politician opening statements to town hall history
     town_hall_history.append({
         "speaker": "politician_1",
         "speaker_name": politician_1_config["full_name"],
@@ -566,6 +589,28 @@ You are giving your opening statement to the voters. What do you want to say? (R
         "content": p2_message,
         "timestamp": datetime.now().isoformat()
     })
+    
+    speeches.append({
+        "round": 1,
+        "character_id": "politician_1",
+        "character_name": politician_1_config["full_name"],
+        "message": p1_message,
+        "emoji_summary": p1_emoji,
+        "timestamp": datetime.now().isoformat(),
+        "sequence": sequence_counter
+    })
+    sequence_counter += 1
+    
+    speeches.append({
+        "round": 1,
+        "character_id": "politician_2",
+        "character_name": politician_2_config["full_name"],
+        "message": p2_message,
+        "emoji_summary": p2_emoji,
+        "timestamp": datetime.now().isoformat(),
+        "sequence": sequence_counter
+    })
+    sequence_counter += 1
     
     # Update all agent memories with politicians' opening statements
     for agent_key in all_agent_keys:
@@ -638,16 +683,27 @@ You are giving your opening statement to the voters. What do you want to say? (R
             # Add the town hall context
             conversation_messages.append({"role": "user", "content": conversation_context})
             
-            # Get agent's response
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
             
-            # Add to town hall history
+            emoji_summary = await generate_emoji_summary(response)
+            
             town_hall_history.append({
                 "speaker": agent_key,
                 "speaker_name": agent_config["full_name"],
                 "content": response,
                 "timestamp": datetime.now().isoformat()
             })
+            
+            speeches.append({
+                "round": round_num + 1,
+                "character_id": agent_key,
+                "character_name": agent_config["full_name"],
+                "message": response,
+                "emoji_summary": emoji_summary,
+                "timestamp": datetime.now().isoformat(),
+                "sequence": sequence_counter
+            })
+            sequence_counter += 1
             
             # Update all agents' memories with this new statement
             for other_agent_key in all_agent_keys:
@@ -684,10 +740,71 @@ You are giving your opening statement to the voters. What do you want to say? (R
                 "round": round_num + 1
             })
     
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    
+    character_sprite_map = {
+        "waitress": "sarah_waitress.png",
+        "librarian": "margaret_librarian.png",
+        "monk": "thomas_monk.png",
+        "police": "james_police.png",
+        "stay_at_home_mom": "emily_mother.png",
+        "politician_1": "alex_politician1.png",
+        "politician_2": "anthony_politician2.png"
+    }
+    
+    characters = []
+    for idx, agent_key in enumerate(all_agent_keys):
+        agent_config = AGENT_CONFIGS[agent_key]
+        characters.append({
+            "id": agent_key,
+            "name": agent_config["full_name"],
+            "role": agent_config["name"],
+            "sprite": character_sprite_map.get(agent_key, "default.png"),
+            "initial_position": {
+                "x": 100 + (idx % 4) * 150,
+                "y": 100 + (idx // 4) * 150
+            }
+        })
+    
+    character_interests = []
+    for agent_key in all_agent_keys:
+        if agent_key not in ["politician_1", "politician_2"]:
+            agent_memory = agent_memories[agent_key]
+            agent_config = AGENT_CONFIGS[agent_key]
+            character_interests.append({
+                "character_id": agent_key,
+                "character_name": agent_config["full_name"],
+                "vote_intent": agent_memory.get("voting_preference", "undecided"),
+                "summary": agent_memory.get("summary", "No summary available")
+            })
+    
+    trajectory = {
+        "metadata": {
+            "topic": request.topic,
+            "num_rounds": request.num_rounds,
+            "timestamp": start_time.isoformat(),
+            "duration_seconds": duration
+        },
+        "characters": characters,
+        "speeches": speeches,
+        "final_state": {
+            "character_interests": character_interests
+        }
+    }
+    
+    trajectory_filename = f"trajectory_{start_time.strftime('%Y%m%d_%H%M%S')}.json"
+    trajectory_path = TRAJECTORIES_DIR / trajectory_filename
+    
+    with open(trajectory_path, 'w') as f:
+        json.dump(trajectory, f, indent=2)
+    
     return {
         "topic": request.topic,
         "agent_responses": all_responses,
-        "conversation_history": town_hall_history
+        "conversation_history": town_hall_history,
+        "trajectory_file": trajectory_filename,
+        "trajectory_path": str(trajectory_path)
     }
 
 
