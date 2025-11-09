@@ -49,6 +49,7 @@ verl_image = (
         "uvloop",
         "fastapi",
         "openai",
+        "partial-json-parser",
         "sglang",
     )
     .run_commands(
