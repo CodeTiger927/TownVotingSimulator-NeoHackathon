@@ -58,8 +58,26 @@ const GRID_COLS = Math.floor(700 / CELL_SIZE)
 const GRID_ROWS = Math.floor(400 / CELL_SIZE)
 const SPRITE_FRAME_WIDTH = 32
 const SPRITE_FRAME_HEIGHT = 32
-const LECTERN = { gridX: Math.floor(21 / 2), gridY: 3 }
-const getLecternSpot = () => ({ x: LECTERN.gridX, y: LECTERN.gridY - 1 })
+
+const POLITICIAN_LECTERNS = [
+  { gridX: 5, gridY: 2, speakerSpot: { x: 5, y: 1 } },
+  { gridX: 15, gridY: 2, speakerSpot: { x: 15, y: 1 } }
+]
+const AUDIENCE_LECTERN = { gridX: 10, gridY: 5, speakerSpot: { x: 10, y: 4 } }
+const STAGE_ROWS = [1, 2, 3]
+const AUDIENCE_SECTION = { startY: 7, endY: 11 }
+
+const getPoliticianLectern = (charId: string) => {
+  if (charId === 'politician_1') return POLITICIAN_LECTERNS[0]
+  if (charId === 'politician_2') return POLITICIAN_LECTERNS[1]
+  return null
+}
+
+const getSpeakingSpot = (char: Character) => {
+  const politicianLectern = getPoliticianLectern(char.id)
+  if (politicianLectern) return politicianLectern.speakerSpot
+  return AUDIENCE_LECTERN.speakerSpot
+}
 
 function App() {
   const [trajectory, setTrajectory] = useState<Trajectory | null>(null)
@@ -98,14 +116,26 @@ function App() {
     const occupiedCells = new Set<string>()
 
     data.characters.forEach((char, idx) => {
-      let gridX = 1 + (idx % (GRID_COLS - 2))
-      let gridY = 1 + Math.floor(idx / (GRID_COLS - 2))
-
-      while (occupiedCells.has(`${gridX},${gridY}`)) {
-        gridX++
-        if (gridX >= GRID_COLS - 1) {
-          gridX = 1
-          gridY++
+      let gridX, gridY, direction
+      
+      const politicianLectern = getPoliticianLectern(char.id)
+      if (politicianLectern) {
+        gridX = politicianLectern.speakerSpot.x
+        gridY = politicianLectern.speakerSpot.y
+        direction = 'down'
+      } else {
+        const audienceIdx = idx - 2
+        const cols = GRID_COLS - 4
+        gridX = 2 + (audienceIdx % cols)
+        gridY = AUDIENCE_SECTION.startY + Math.floor(audienceIdx / cols)
+        direction = 'up'
+        
+        while (occupiedCells.has(`${gridX},${gridY}`) || gridY > AUDIENCE_SECTION.endY) {
+          gridX++
+          if (gridX >= GRID_COLS - 2) {
+            gridX = 2
+            gridY++
+          }
         }
       }
 
@@ -119,7 +149,7 @@ function App() {
         path: [],
         targetGridX: gridX,
         targetGridY: gridY,
-        direction: 'down',
+        direction: direction as 'down' | 'left' | 'right' | 'up',
         animFrame: 1,
         isMoving: false
       }
@@ -207,19 +237,25 @@ function App() {
             console.log('SPEAKER MOVING:', char.id, 'at', pos.gridX, pos.gridY, 'target', pos.targetGridX, pos.targetGridY, 'path length', pos.path.length, 'speakerState', speakerStateRef.current)
           }
           
-          if (char.id !== lecternOccupiedByRef.current || speakerStateRef.current !== 'moving_to_lectern') {
-            occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
-          }
+          POLITICIAN_LECTERNS.forEach(lectern => {
+            occupiedCells.add(`${lectern.gridX},${lectern.gridY}`)
+          })
+          occupiedCells.add(`${AUDIENCE_LECTERN.gridX},${AUDIENCE_LECTERN.gridY}`)
           
           if (char.id !== lecternOccupiedByRef.current && (speakerStateRef.current === 'moving_to_lectern' || speakerStateRef.current === 'speaking')) {
-            const spot = getLecternSpot()
-            occupiedCells.add(`${spot.x},${spot.y}`)
+            const currentSpeaker = trajectory.characters.find(c => c.id === lecternOccupiedByRef.current)
+            if (currentSpeaker) {
+              const spot = getSpeakingSpot(currentSpeaker)
+              occupiedCells.add(`${spot.x},${spot.y}`)
+            }
           }
 
           if (pos.path.length === 0) {
-            if (!isCurrentSpeaker && speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.3) {
-              const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
-              const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
+            const isPolitician = getPoliticianLectern(char.id) !== null
+            if (!isPolitician && !isCurrentSpeaker && speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.3) {
+              const cols = GRID_COLS - 4
+              const targetX = 2 + Math.floor(Math.random() * cols)
+              const targetY = AUDIENCE_SECTION.startY + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_SECTION.startY + 1))
 
               occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
               const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
@@ -271,7 +307,7 @@ function App() {
             occupiedCells.add(`${pos.gridX},${pos.gridY}`)
           }
 
-          const spot = getLecternSpot()
+          const spot = getSpeakingSpot(char)
           if (isCurrentSpeaker) {
             console.log('CHECKING ARRIVAL:', char.id, 'pos:', pos.gridX, pos.gridY, 'spot:', spot.x, spot.y, 'speakerState:', speakerStateRef.current, 'match:', pos.gridX === spot.x && pos.gridY === spot.y)
           }
@@ -378,7 +414,9 @@ function App() {
           if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
         })
 
-        const spot = getLecternSpot()
+        const char = trajectory.characters.find(c => c.id === speakerId)
+        if (!char) return prev
+        const spot = getSpeakingSpot(char)
         console.log('PLANNING PATH TO LECTERN:', speakerId, 'from', pos.gridX, pos.gridY, 'to', spot.x, spot.y)
         const path = bfs(pos.gridX, pos.gridY, spot.x, spot.y, occupiedCells)
         console.log('PATH LENGTH:', path.length, 'PATH:', path)
@@ -395,13 +433,21 @@ function App() {
     }
 
     if (speakerState === 'speaking' && !speakingTimerStartedRef.current) {
-      const words = speech.message.trim().split(/\s+/).filter(Boolean).length
-      const durationMs = Math.max(2500, Math.min(15000, words * 300))
+      const char = trajectory.characters.find(c => c.id === speakerId)
+      const isPolitician = char && getPoliticianLectern(char.id) !== null
+      
+      if (isPolitician) {
+        setSpeakerState('done')
+        setCurrentSpeechIndex(prev => prev + 1)
+      } else {
+        const words = speech.message.trim().split(/\s+/).filter(Boolean).length
+        const durationMs = Math.max(2500, Math.min(15000, words * 300))
 
-      if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
-      speechTimerRef.current = window.setTimeout(() => {
-        setSpeakerState('leaving_lectern')
-      }, durationMs)
+        if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
+        speechTimerRef.current = window.setTimeout(() => {
+          setSpeakerState('leaving_lectern')
+        }, durationMs)
+      }
       speakingTimerStartedRef.current = true
     }
 
@@ -416,13 +462,14 @@ function App() {
           Object.values(newPositions).forEach(p => {
             if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
           })
-          occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
+          POLITICIAN_LECTERNS.forEach(lectern => {
+            occupiedCells.add(`${lectern.gridX},${lectern.gridY}`)
+          })
+          occupiedCells.add(`${AUDIENCE_LECTERN.gridX},${AUDIENCE_LECTERN.gridY}`)
 
-          let targetX, targetY
-          do {
-            targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
-            targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
-          } while (Math.abs(targetX - LECTERN.gridX) < 2 && Math.abs(targetY - LECTERN.gridY) < 2)
+          const cols = GRID_COLS - 4
+          const targetX = 2 + Math.floor(Math.random() * cols)
+          const targetY = AUDIENCE_SECTION.startY + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_SECTION.startY + 1))
 
           const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
           if (path.length > 0) {
@@ -552,17 +599,50 @@ function App() {
                 imageRendering: 'pixelated'
               }}
             />
+            
+            <div
+              className="absolute"
+              style={{
+                left: '50px',
+                top: `${50 + STAGE_ROWS[0] * CELL_SIZE}px`,
+                width: `${GRID_COLS * CELL_SIZE}px`,
+                height: `${STAGE_ROWS.length * CELL_SIZE}px`,
+                backgroundColor: '#8B4513',
+                border: '2px solid #654321',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                zIndex: 0
+              }}
+            />
+            
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               <text x="400" y="30" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">
                 Town Hall
               </text>
             </svg>
 
+            {POLITICIAN_LECTERNS.map((lectern, idx) => (
+              <div
+                key={`politician-lectern-${idx}`}
+                className="absolute"
+                style={{
+                  left: `${50 + lectern.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
+                  top: `${50 + lectern.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
+                  width: `${CELL_SIZE}px`,
+                  height: `${CELL_SIZE}px`,
+                  transform: 'translate(-50%, -50%)',
+                  backgroundImage: 'url(/lectern.png)',
+                  backgroundSize: '100% 100%',
+                  imageRendering: 'pixelated',
+                  zIndex: 1
+                }}
+              />
+            ))}
+            
             <div
               className="absolute"
               style={{
-                left: `${50 + LECTERN.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
-                top: `${50 + LECTERN.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
+                left: `${50 + AUDIENCE_LECTERN.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
+                top: `${50 + AUDIENCE_LECTERN.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
                 width: `${CELL_SIZE}px`,
                 height: `${CELL_SIZE}px`,
                 transform: 'translate(-50%, -50%)',
