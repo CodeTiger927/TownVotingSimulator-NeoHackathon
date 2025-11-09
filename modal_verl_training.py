@@ -230,14 +230,10 @@ def main(
     Usage:
         modal run modal_verl_training.py --num-episodes 5 --topic immigration
     """
-    print("Deploying FastAPI backend...")
-    backend_app = backend_asgi.spawn()
+    import json
     
-    import time
-    time.sleep(5)
-    
-    backend_url = backend_app.web_url
-    print(f"Backend deployed at: {backend_url}")
+    backend_url = "https://anthonyindeepspace--townhall-verl-training-backend-asgi-dev.modal.run"
+    print(f"Using FastAPI backend at: {backend_url}")
     
     print(f"\nStarting veRL training for {num_episodes} episodes on topic: {topic}")
     
