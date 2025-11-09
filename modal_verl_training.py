@@ -220,6 +220,7 @@ def run_verl_training(
     
     import subprocess
     
+    batch_size = max(num_episodes * 8, 8)
     training_args = [
         sys.executable, "-m", "verl.trainer.main_ppo",
         f"actor_rollout_ref.rollout.name=sglang",
@@ -231,10 +232,12 @@ def run_verl_training(
         f"actor_rollout_ref.model.path={model_name}",
         f"actor_rollout_ref.model.trust_remote_code=true",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4",
+        f"actor_rollout_ref.actor.ppo_mini_batch_size={batch_size}",
         f"critic.ppo_micro_batch_size_per_gpu=4",
+        f"critic.ppo_mini_batch_size={batch_size}",
         f"data.train_files={dataset_file}",
         f"data.val_files={dataset_file}",
-        f"data.train_batch_size={max(num_episodes * 8, 8)}",
+        f"data.train_batch_size={batch_size}",
         f"trainer.total_training_steps={num_episodes}",
         f"trainer.default_local_dir={output_dir}",
         f"trainer.val_before_train=false",
