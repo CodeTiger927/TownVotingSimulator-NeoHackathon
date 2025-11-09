@@ -50,7 +50,7 @@ verl_image = (
         "fastapi",
         "openai",
         "partial-json-parser",
-        "sglang==0.4.0",
+        "sglang==0.3.7",
     )
     .run_commands(
         "pip install wheel",
