@@ -7,6 +7,7 @@ import os
 import json
 import random
 import re
+import uuid
 from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +33,8 @@ app.add_middleware(
 )
 
 agent_memories: Dict[str, dict] = {}
+
+RL_SESSIONS: Dict[str, dict] = {}
 
 politician_policies: Dict[str, dict] = {
     "politician_1": {
@@ -308,6 +311,34 @@ class TownHallRequest(BaseModel):
 
     topic: str
     num_rounds: int = 1
+
+
+class RLTownHallStartRequest(BaseModel):
+    topic: str
+    num_rounds: int = 1
+    max_assistant_turns: int = 6
+    force_actor: Optional[str] = None
+    reward_type: str = "margin_normalized"
+
+
+class RLTownHallStartResponse(BaseModel):
+    session_id: str
+    actor_id: str
+    non_actor_id: str
+    next_message: str
+    meta: dict
+
+
+class RLTownHallStepRequest(BaseModel):
+    session_id: str
+    actor_message: str
+
+
+class RLTownHallStepResponse(BaseModel):
+    terminal: bool
+    next_message: str
+    reward: float
+    meta: dict
 
 
 async def call_llm(system_prompt: str, messages: List[dict], temperature: float = 0.7, max_tokens: int = 500, response_format: dict = None) -> str:
@@ -867,6 +898,367 @@ async def reset_simulation():
     }
     
     return {"reset": True, "message": "All agent memories and policies have been reset"}
+
+
+@app.post("/rl/townhall/start")
+async def rl_townhall_start(request: RLTownHallStartRequest):
+    """
+    Initialize a new RL town hall session for multi-turn training.
+    Randomly selects one politician as the actor (veRL policy) and the other as non-actor (normal LLM).
+    Returns the initial prompt for the actor's opening statement.
+    """
+    session_id = str(uuid.uuid4())
+    
+    if request.force_actor and request.force_actor in ["politician_1", "politician_2"]:
+        actor_id = request.force_actor
+    else:
+        actor_id = random.choice(["politician_1", "politician_2"])
+    
+    non_actor_id = "politician_2" if actor_id == "politician_1" else "politician_1"
+    
+    villager_keys = [k for k in AGENT_CONFIGS.keys() if k not in ["politician_1", "politician_2"]]
+    speaking_order = villager_keys.copy()
+    random.shuffle(speaking_order)
+    
+    actor_config = AGENT_CONFIGS[actor_id]
+    non_actor_config = AGENT_CONFIGS[non_actor_id]
+    
+    session_state = {
+        "session_id": session_id,
+        "actor_id": actor_id,
+        "non_actor_id": non_actor_id,
+        "topic": request.topic,
+        "num_rounds": request.num_rounds,
+        "max_assistant_turns": request.max_assistant_turns,
+        "reward_type": request.reward_type,
+        "assistant_turns_used": 0,
+        "speaking_order": speaking_order,
+        "villager_idx": 0,
+        "phase": "opening",
+        "town_hall_history": [],
+        "created_at": datetime.now().isoformat()
+    }
+    
+    RL_SESSIONS[session_id] = session_state
+    
+    next_message = f"""You are {actor_config['full_name']}, a politician running for office in a small village. This is a town hall meeting about {request.topic}.
+
+You are giving your opening statement to the voters. What do you want to say? Respond in character as {actor_config['full_name']}, in 2-3 sentences."""
+    
+    meta = {
+        "session_id": session_id,
+        "actor_id": actor_id,
+        "non_actor_id": non_actor_id,
+        "phase": "opening",
+        "assistant_turns_used": 0,
+        "max_assistant_turns": request.max_assistant_turns
+    }
+    
+    return RLTownHallStartResponse(
+        session_id=session_id,
+        actor_id=actor_id,
+        non_actor_id=non_actor_id,
+        next_message=next_message,
+        meta=meta
+    )
+
+
+@app.post("/rl/townhall/step")
+async def rl_townhall_step(request: RLTownHallStepRequest):
+    """
+    Process one step of the RL town hall session.
+    Receives the actor's message, simulates the environment (non-actor + villagers),
+    and returns the next message for the actor along with terminal flag and reward.
+    """
+    if request.session_id not in RL_SESSIONS:
+        raise HTTPException(status_code=404, detail=f"Session '{request.session_id}' not found")
+    
+    session = RL_SESSIONS[request.session_id]
+    actor_id = session["actor_id"]
+    non_actor_id = session["non_actor_id"]
+    actor_config = AGENT_CONFIGS[actor_id]
+    non_actor_config = AGENT_CONFIGS[non_actor_id]
+    
+    session["assistant_turns_used"] += 1
+    
+    actor_memory = agent_memories[actor_id]
+    actor_memory["conversation_history"].append({
+        "role": "assistant",
+        "content": request.actor_message,
+        "speaker": actor_id,
+        "speaker_name": actor_config["full_name"],
+        "topic": session["topic"],
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    session["town_hall_history"].append({
+        "speaker": actor_id,
+        "speaker_name": actor_config["full_name"],
+        "content": request.actor_message,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    terminal = False
+    reward = 0.0
+    next_message = ""
+    
+    if session["phase"] == "opening":
+        p1_opening_prompt = f"""This is a town hall meeting about {session['topic']}. 
+You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
+        non_actor_message = await call_llm(non_actor_config["system_prompt"], [{"role": "user", "content": p1_opening_prompt}])
+        
+        non_actor_memory = agent_memories[non_actor_id]
+        non_actor_memory["conversation_history"].append({
+            "role": "assistant",
+            "content": non_actor_message,
+            "speaker": non_actor_id,
+            "speaker_name": non_actor_config["full_name"],
+            "topic": session["topic"],
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        session["town_hall_history"].append({
+            "speaker": non_actor_id,
+            "speaker_name": non_actor_config["full_name"],
+            "content": non_actor_message,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        for agent_key in AGENT_CONFIGS.keys():
+            agent_memory = agent_memories[agent_key]
+            agent_memory["conversation_history"].append({
+                "role": "townhall",
+                "content": request.actor_message,
+                "speaker": actor_id,
+                "speaker_name": actor_config["full_name"],
+                "politician_id": actor_id,
+                "topic": session["topic"],
+                "timestamp": datetime.now().isoformat()
+            })
+            agent_memory["conversation_history"].append({
+                "role": "townhall",
+                "content": non_actor_message,
+                "speaker": non_actor_id,
+                "speaker_name": non_actor_config["full_name"],
+                "politician_id": non_actor_id,
+                "topic": session["topic"],
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        session["phase"] = "villager"
+        
+        first_villager_key = session["speaking_order"][0]
+        first_villager_config = AGENT_CONFIGS[first_villager_key]
+        
+        conversation_context = f"This is a town hall meeting about {session['topic']}.\n\n"
+        conversation_context += "Here's what has been said so far:\n\n"
+        for msg in session["town_hall_history"]:
+            conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
+        conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
+        
+        villager_message = await call_llm(first_villager_config["system_prompt"], [{"role": "user", "content": conversation_context}])
+        
+        session["town_hall_history"].append({
+            "speaker": first_villager_key,
+            "speaker_name": first_villager_config["full_name"],
+            "content": villager_message,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        for agent_key in AGENT_CONFIGS.keys():
+            agent_memory = agent_memories[agent_key]
+            if agent_key == first_villager_key:
+                agent_memory["conversation_history"].append({
+                    "role": "assistant",
+                    "content": villager_message,
+                    "speaker": first_villager_key,
+                    "speaker_name": first_villager_config["full_name"],
+                    "topic": session["topic"],
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                agent_memory["conversation_history"].append({
+                    "role": "townhall",
+                    "content": villager_message,
+                    "speaker": first_villager_key,
+                    "speaker_name": first_villager_config["full_name"],
+                    "topic": session["topic"],
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        next_message = f"""The villager {first_villager_config['full_name']} just said:
+
+"{villager_message}"
+
+You are {actor_config['full_name']}. How do you respond? (Respond in character, briefly - 1-3 sentences.)"""
+        
+    elif session["phase"] == "villager":
+        for agent_key in AGENT_CONFIGS.keys():
+            agent_memory = agent_memories[agent_key]
+            if agent_key == actor_id:
+                pass
+            else:
+                agent_memory["conversation_history"].append({
+                    "role": "townhall",
+                    "content": request.actor_message,
+                    "speaker": actor_id,
+                    "speaker_name": actor_config["full_name"],
+                    "politician_id": actor_id,
+                    "topic": session["topic"],
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        conversation_context_non_actor = f"This is a town hall meeting about {session['topic']}.\n\n"
+        conversation_context_non_actor += "Here's what has been said so far:\n\n"
+        for msg in session["town_hall_history"][-5:]:
+            conversation_context_non_actor += f"{msg['speaker_name']}: {msg['content']}\n\n"
+        conversation_context_non_actor += f"\nIt's your turn to speak. What do you want to say in response? (Respond in character as {non_actor_config['full_name']}, briefly - 1-2 sentences.)"
+        
+        non_actor_response = await call_llm(non_actor_config["system_prompt"], [{"role": "user", "content": conversation_context_non_actor}])
+        
+        non_actor_memory = agent_memories[non_actor_id]
+        non_actor_memory["conversation_history"].append({
+            "role": "assistant",
+            "content": non_actor_response,
+            "speaker": non_actor_id,
+            "speaker_name": non_actor_config["full_name"],
+            "topic": session["topic"],
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        session["town_hall_history"].append({
+            "speaker": non_actor_id,
+            "speaker_name": non_actor_config["full_name"],
+            "content": non_actor_response,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        for agent_key in AGENT_CONFIGS.keys():
+            if agent_key != non_actor_id:
+                agent_memory = agent_memories[agent_key]
+                agent_memory["conversation_history"].append({
+                    "role": "townhall",
+                    "content": non_actor_response,
+                    "speaker": non_actor_id,
+                    "speaker_name": non_actor_config["full_name"],
+                    "politician_id": non_actor_id,
+                    "topic": session["topic"],
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        session["villager_idx"] += 1
+        
+        if session["villager_idx"] >= len(session["speaking_order"]) or session["assistant_turns_used"] >= session["max_assistant_turns"]:
+            terminal = True
+            
+            voting_decisions = []
+            villager_keys = [k for k in AGENT_CONFIGS.keys() if k not in ["politician_1", "politician_2"]]
+            
+            for agent_key in villager_keys:
+                llm_decision = await get_llm_voting_decision(agent_key)
+                agent_memories[agent_key]["voting_preference"] = llm_decision["vote"]
+                agent_memories[agent_key]["llm_decision"] = llm_decision
+                voting_decisions.append({
+                    "agent_key": agent_key,
+                    "vote": llm_decision["vote"],
+                    "rationale": llm_decision["rationale"],
+                    "confidence": llm_decision["confidence"]
+                })
+            
+            votes = {"politician_1": 0, "politician_2": 0, "undecided": 0}
+            for decision in voting_decisions:
+                if decision["vote"] == "politician_1":
+                    votes["politician_1"] += 1
+                elif decision["vote"] == "politician_2":
+                    votes["politician_2"] += 1
+                else:
+                    votes["undecided"] += 1
+            
+            if session["reward_type"] == "margin_normalized":
+                reward = (votes[actor_id] - votes[non_actor_id]) / 5.0
+            elif session["reward_type"] == "margin":
+                reward = votes[actor_id] - votes[non_actor_id]
+            elif session["reward_type"] == "votes_normalized":
+                reward = votes[actor_id] / 5.0
+            else:
+                reward = votes[actor_id]
+            
+            next_message = ""
+            
+            meta = {
+                "session_id": request.session_id,
+                "actor_id": actor_id,
+                "non_actor_id": non_actor_id,
+                "phase": "done",
+                "assistant_turns_used": session["assistant_turns_used"],
+                "max_assistant_turns": session["max_assistant_turns"],
+                "votes": votes,
+                "voting_decisions": voting_decisions,
+                "reward_type": session["reward_type"],
+                "terminal_reason": "max_turns" if session["assistant_turns_used"] >= session["max_assistant_turns"] else "all_villagers_spoke"
+            }
+        else:
+            next_villager_key = session["speaking_order"][session["villager_idx"]]
+            next_villager_config = AGENT_CONFIGS[next_villager_key]
+            
+            conversation_context = f"This is a town hall meeting about {session['topic']}.\n\n"
+            conversation_context += "Here's what has been said so far:\n\n"
+            for msg in session["town_hall_history"][-8:]:
+                conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
+            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
+            
+            villager_message = await call_llm(next_villager_config["system_prompt"], [{"role": "user", "content": conversation_context}])
+            
+            session["town_hall_history"].append({
+                "speaker": next_villager_key,
+                "speaker_name": next_villager_config["full_name"],
+                "content": villager_message,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            for agent_key in AGENT_CONFIGS.keys():
+                agent_memory = agent_memories[agent_key]
+                if agent_key == next_villager_key:
+                    agent_memory["conversation_history"].append({
+                        "role": "assistant",
+                        "content": villager_message,
+                        "speaker": next_villager_key,
+                        "speaker_name": next_villager_config["full_name"],
+                        "topic": session["topic"],
+                        "timestamp": datetime.now().isoformat()
+                    })
+                else:
+                    agent_memory["conversation_history"].append({
+                        "role": "townhall",
+                        "content": villager_message,
+                        "speaker": next_villager_key,
+                        "speaker_name": next_villager_config["full_name"],
+                        "topic": session["topic"],
+                        "timestamp": datetime.now().isoformat()
+                    })
+            
+            next_message = f"""The villager {next_villager_config['full_name']} just said:
+
+"{villager_message}"
+
+You are {actor_config['full_name']}. How do you respond? (Respond in character, briefly - 1-3 sentences.)"""
+            
+            meta = {
+                "session_id": request.session_id,
+                "actor_id": actor_id,
+                "non_actor_id": non_actor_id,
+                "phase": "villager",
+                "villager_idx": session["villager_idx"],
+                "assistant_turns_used": session["assistant_turns_used"],
+                "max_assistant_turns": session["max_assistant_turns"]
+            }
+    
+    return RLTownHallStepResponse(
+        terminal=terminal,
+        next_message=next_message,
+        reward=reward,
+        meta=meta
+    )
 
 
 if __name__ == "__main__":

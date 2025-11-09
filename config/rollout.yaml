@@ -1,0 +1,10 @@
+actor_rollout_ref:
+  rollout:
+    name: sglang
+    mode: sync
+    multi_turn: true
+    multi_turn_interaction_config_path: ./config/interaction.yaml
+    log_prob_micro_batch_size: 4
+    temperature: 0.7
+    top_p: 0.9
+    max_new_tokens: 256

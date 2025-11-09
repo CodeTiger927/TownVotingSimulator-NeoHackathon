@@ -1,0 +1,10 @@
+interaction:
+  - name: "debate_townhall"
+    class_name: "verl_integration.debate_interaction.DebateTownHallInteraction"
+    config:
+      base_url: "http://localhost:8000"
+      topic: "immigration"
+      num_rounds: 1
+      max_assistant_turns: 6
+      reward_type: "margin_normalized"
+      timeout_s: 30.0

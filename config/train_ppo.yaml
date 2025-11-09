@@ -1,0 +1,49 @@
+
+model:
+  model_name_or_path: "Qwen/Qwen2.5-3B-Instruct"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+
+trainer:
+  total_epochs: 1
+  total_training_steps: 10
+  save_freq: 5
+  logging_freq: 1
+  project_name: "townhall-debate-rl"
+  experiment_name: "ppo-debate-training"
+  
+algorithm:
+  kl_ctrl:
+    kl_coef: 0.05
+    target_kl: 0.1
+    horizon: 10000
+  
+  adv_estimator:
+    gamma: 0.99
+    lam: 0.95
+  
+  cliprange: 0.2
+  cliprange_value: 0.2
+
+ppo:
+  num_mini_batches: 2
+  ppo_mini_batch_size: 4
+  ppo_epochs: 2
+  clip_range: 0.2
+  clip_range_value: 0.2
+  learning_rate: 1.0e-5
+  adam_epsilon: 1.0e-8
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+
+data:
+  train_batch_size: 8
+  val_batch_size: 8
+  max_prompt_length: 512
+  max_response_length: 256
+
+rollout:
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  repetition_penalty: 1.0
