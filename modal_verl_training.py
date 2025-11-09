@@ -30,7 +30,7 @@ verl_image = (
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .apt_install("git")
     .pip_install(
-        "torch==2.4.1",
+        "torch==2.5.1",
         "ray==2.9.3",
         "transformers==4.36.0",
         "accelerate==0.25.0",
@@ -237,6 +237,23 @@ def run_verl_training(
     import torch
     gpu_count = torch.cuda.device_count()
     print(f"GPUs Available: {gpu_count}")
+    
+    print("\nVerifying PyTorch DTensor support...")
+    print(f"PyTorch version: {torch.__version__}")
+    print(f"CUDA version: {torch.version.cuda}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    try:
+        from torch.distributed.tensor import DTensor
+        print("✓ DTensor import successful")
+    except ImportError as e:
+        print(f"✗ DTensor import failed: {e}")
+        print("ERROR: PyTorch version does not support DTensor in torch.distributed.tensor")
+        print("This is required by veRL. Please upgrade PyTorch to 2.5.1 or later.")
+        return {
+            "status": "environment_error",
+            "error": "DTensor not available",
+            "message": f"PyTorch {torch.__version__} does not expose DTensor in torch.distributed.tensor"
+        }
     print("="*80 + "\n")
     
     print("Probing backend URL to verify connectivity...")
