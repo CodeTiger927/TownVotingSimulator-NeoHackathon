@@ -820,8 +820,8 @@ function App() {
                 style={{
                   left: `${50 + lectern.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
                   top: `${50 + lectern.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
-                  width: `${CELL_SIZE}px`,
-                  height: `${CELL_SIZE}px`,
+                  width: `${CELL_SIZE * 1.25}px`,
+                  height: `${CELL_SIZE * 1.25}px`,
                   transform: 'translate(-50%, -50%)',
                   backgroundImage: 'url(/lectern.png)',
                   backgroundSize: '100% 100%',
@@ -836,8 +836,8 @@ function App() {
               style={{
                 left: `${50 + AUDIENCE_LECTERN.gridX * CELL_SIZE + CELL_SIZE / 2}px`,
                 top: `${50 + AUDIENCE_LECTERN.gridY * CELL_SIZE + CELL_SIZE / 2}px`,
-                width: `${CELL_SIZE}px`,
-                height: `${CELL_SIZE}px`,
+                width: `${CELL_SIZE * 1.25}px`,
+                height: `${CELL_SIZE * 1.25}px`,
                 transform: 'translate(-50%, -50%)',
                 backgroundImage: 'url(/lectern.png)',
                 backgroundSize: '100% 100%',
