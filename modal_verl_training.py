@@ -226,14 +226,15 @@ def run_verl_training(
     
     training_args = [
         sys.executable, "-m", "verl.trainer.main_ppo",
-        f"+actor_rollout_ref.rollout.name=sglang",
-        f"+actor_rollout_ref.rollout.mode=sync",
-        f"+actor_rollout_ref.rollout.multi_turn=true",
-        f"+actor_rollout_ref.rollout.multi_turn_interaction_config_path={config_dir/'interaction.yaml'}",
-        f"+model.model_name_or_path={model_name}",
-        f"+dataset.path={dataset_file}",
-        f"+trainer.total_training_steps={num_episodes}",
-        f"+trainer.output_dir={output_dir}",
+        f"actor_rollout_ref.rollout.name=sglang",
+        f"actor_rollout_ref.rollout.mode=sync",
+        f"actor_rollout_ref.rollout.multi_turn.enable=true",
+        f"actor_rollout_ref.rollout.multi_turn.interaction_config_path={config_dir/'interaction.yaml'}",
+        f"actor_rollout_ref.rollout.multi_turn.max_assistant_turns=6",
+        f"actor_rollout_ref.model.path={model_name}",
+        f"data.train_files={dataset_file}",
+        f"trainer.total_training_steps={num_episodes}",
+        f"trainer.default_local_dir={output_dir}",
     ]
     
     print(f"Running command: {' '.join(training_args)}")
