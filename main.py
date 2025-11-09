@@ -700,6 +700,27 @@ You are giving your opening statement to the voters. What do you want to say? (R
                 for item, score in relevant_memories[:3]:  # Show top 3
                     print(f"  - [{item.kind}:{item.topic}] score={score:.3f} {item.content[:80]}...")
             
+            if agent_key in ["waitress", "librarian", "politician_1"]:
+                import json
+                prompt_data = {
+                    "agent": agent_config["full_name"],
+                    "agent_key": agent_key,
+                    "round": round_num + 1,
+                    "system_prompt": agent_config["system_prompt"],
+                    "messages": conversation_messages,
+                    "rag_memories": [
+                        {
+                            "content": item.content,
+                            "score": round(score, 4),
+                            "importance": item.importance,
+                            "timestamp": item.timestamp
+                        }
+                        for item, score in relevant_memories
+                    ] if memory_context else []
+                }
+                with open(f"/tmp/prompt_{agent_key}_round{round_num + 1}.json", "w") as f:
+                    json.dump(prompt_data, f, indent=2)
+            
             # Get agent's response
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
             print(f"[RESPONSE] {agent_config['full_name']}: {response[:100]}..." if len(response) > 100 else f"[RESPONSE] {agent_config['full_name']}: {response}")
