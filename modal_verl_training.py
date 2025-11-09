@@ -52,10 +52,10 @@ backend_volume = modal.Volume.from_name("townhall-backend-data", create_if_missi
 @app.function(
     image=image,
     gpu=None,
-    allow_concurrent_inputs=100,
-    container_idle_timeout=300,
+    scaledown_window=300,
 )
-@modal.web_endpoint(method="POST")
+@modal.concurrent(100)
+@modal.fastapi_endpoint(method="POST")
 async def backend_web_endpoint(request_data: dict):
     """
     FastAPI backend endpoint for the town hall simulation.
@@ -88,10 +88,10 @@ async def backend_web_endpoint(request_data: dict):
 @app.function(
     image=image,
     gpu=None,
-    allow_concurrent_inputs=100,
-    container_idle_timeout=300,
+    scaledown_window=300,
     volumes={"/data": backend_volume},
 )
+@modal.concurrent(100)
 @modal.asgi_app()
 def backend_asgi():
     """
@@ -107,10 +107,9 @@ def backend_asgi():
 
 @app.function(
     image=verl_image,
-    gpu=modal.gpu.H100(count=8),
+    gpu="H100:8",
     timeout=3600 * 4,
     volumes={"/data": backend_volume},
-    secrets=[modal.Secret.from_name("modal-inference-secret")],
 )
 def run_verl_training(
     backend_url: str,
