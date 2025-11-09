@@ -80,6 +80,28 @@ const getSpeakingSpot = (char: Character) => {
   return AUDIENCE_LECTERN.speakerSpot
 }
 
+const findAvailablePositionNear = (targetX: number, targetY: number, radius: number, occupiedCells: Set<string>, currentX: number, currentY: number): {x: number, y: number} | null => {
+  const candidates: {x: number, y: number, distance: number}[] = []
+  
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dy = -radius; dy <= radius; dy++) {
+      const x = targetX + dx
+      const y = targetY + dy
+      const key = `${x},${y}`
+      
+      if (x >= 1 && x < GRID_COLS - 1 && y >= 1 && y < GRID_ROWS - 1 && !occupiedCells.has(key)) {
+        const distance = Math.abs(x - currentX) + Math.abs(y - currentY)
+        candidates.push({x, y, distance})
+      }
+    }
+  }
+  
+  if (candidates.length === 0) return null
+  
+  candidates.sort((a, b) => a.distance - b.distance)
+  return {x: candidates[0].x, y: candidates[0].y}
+}
+
 function App() {
   const [trajectory, setTrajectory] = useState<Trajectory | null>(null)
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0)
