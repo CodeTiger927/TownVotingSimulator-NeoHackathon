@@ -262,20 +262,52 @@ function App() {
 
           if (pos.path.length === 0) {
             const isPolitician = getPoliticianLectern(char.id) !== null
-            if (!isPolitician && !isCurrentSpeaker && speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.3) {
-              const cols = GRID_COLS - 4
-              const targetX = 2 + Math.floor(Math.random() * cols)
-              const targetY = AUDIENCE_SECTION.startY + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_SECTION.startY + 1))
+            
+            if (!isPolitician && !isCurrentSpeaker) {
+              let swarmTarget: {x: number, y: number} | null = null
+              
+              if (speakerStateRef.current === 'speaking' || speakerStateRef.current === 'moving_to_lectern') {
+                const currentSpeaker = trajectory.characters.find(c => c.id === lecternOccupiedByRef.current)
+                if (currentSpeaker) {
+                  const speakerPoliticianLectern = getPoliticianLectern(currentSpeaker.id)
+                  if (speakerPoliticianLectern) {
+                    swarmTarget = {x: speakerPoliticianLectern.gridX, y: speakerPoliticianLectern.gridY}
+                  } else {
+                    swarmTarget = {x: AUDIENCE_LECTERN.gridX, y: AUDIENCE_LECTERN.gridY}
+                  }
+                }
+              }
+              
+              if (swarmTarget && Math.random() < 0.4) {
+                occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
+                const availablePos = findAvailablePositionNear(swarmTarget.x, swarmTarget.y, 4, occupiedCells, pos.gridX, pos.gridY)
+                
+                if (availablePos) {
+                  const path = bfs(pos.gridX, pos.gridY, availablePos.x, availablePos.y, occupiedCells)
+                  if (path.length > 0) {
+                    pos.path = path
+                    pos.targetGridX = availablePos.x
+                    pos.targetGridY = availablePos.y
+                    pos.isMoving = true
+                  }
+                }
+                
+                occupiedCells.add(`${pos.gridX},${pos.gridY}`)
+              } else if (speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.2) {
+                const cols = GRID_COLS - 4
+                const targetX = 2 + Math.floor(Math.random() * cols)
+                const targetY = AUDIENCE_SECTION.startY + Math.floor(Math.random() * (AUDIENCE_SECTION.endY - AUDIENCE_SECTION.startY + 1))
 
-              occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
-              const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
-              occupiedCells.add(`${pos.gridX},${pos.gridY}`)
+                occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
+                const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
+                occupiedCells.add(`${pos.gridX},${pos.gridY}`)
 
-              if (path.length > 0) {
-                pos.path = path
-                pos.targetGridX = targetX
-                pos.targetGridY = targetY
-                pos.isMoving = true
+                if (path.length > 0) {
+                  pos.path = path
+                  pos.targetGridX = targetX
+                  pos.targetGridY = targetY
+                  pos.isMoving = true
+                }
               }
             }
           }else {
