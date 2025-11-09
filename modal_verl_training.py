@@ -30,12 +30,13 @@ verl_image = (
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .apt_install("git")
     .pip_install(
-        "torch==2.3.0",
+        "torch==2.4.1",
+        "ray==2.9.3",
         "transformers==4.36.0",
         "accelerate==0.25.0",
         "datasets==2.15.0",
         "peft==0.7.0",
-        "bitsandbytes==0.41.3",
+        "bitsandbytes==0.43.0",
         "scipy==1.11.4",
         "sentencepiece==0.1.99",
         "protobuf==4.25.1",
