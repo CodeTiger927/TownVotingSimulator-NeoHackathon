@@ -153,18 +153,14 @@ def run_verl_training(
     dataset_samples = [
         {
             "prompt": "You are a political candidate. Be persuasive and concise.",
-            "interaction_kwargs": {
-                "name": "debate_townhall",
-                "topic": topic,
-            }
         }
         for _ in range(max(num_episodes, 5))
     ]
     
-    dataset_file = datasets_dir / "debate_samples.jsonl"
-    with open(dataset_file, "w") as f:
-        for sample in dataset_samples:
-            f.write(json.dumps(sample) + "\n")
+    import pandas as pd
+    df = pd.DataFrame(dataset_samples)
+    dataset_file = datasets_dir / "debate_samples.parquet"
+    df.to_parquet(dataset_file, index=False)
     
     print(f"Created interaction config and dataset in {config_dir}")
     
@@ -233,11 +229,15 @@ def run_verl_training(
         f"actor_rollout_ref.rollout.multi_turn.interaction_config_path={config_dir/'interaction.yaml'}",
         f"actor_rollout_ref.rollout.multi_turn.max_assistant_turns=6",
         f"actor_rollout_ref.model.path={model_name}",
+        f"actor_rollout_ref.model.trust_remote_code=true",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4",
         f"critic.ppo_micro_batch_size_per_gpu=4",
         f"data.train_files={dataset_file}",
+        f"data.val_files={dataset_file}",
         f"trainer.total_training_steps={num_episodes}",
         f"trainer.default_local_dir={output_dir}",
+        f"trainer.val_before_train=false",
+        "trainer.logger=[console]",
     ]
     
     print(f"Running command: {' '.join(training_args)}")
