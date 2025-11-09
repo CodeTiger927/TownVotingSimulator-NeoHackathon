@@ -233,6 +233,8 @@ def run_verl_training(
         f"actor_rollout_ref.model.trust_remote_code=true",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={batch_size}",
+        f"critic.model.path={model_name}",
+        f"critic.model.trust_remote_code=true",
         f"critic.ppo_micro_batch_size_per_gpu=4",
         f"critic.ppo_mini_batch_size={batch_size}",
         f"data.train_files={dataset_file}",
