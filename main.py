@@ -119,10 +119,47 @@ def strip_think_tags(text: str) -> str:
     return text.strip()
 
 
-async def generate_emoji_summary(message: str) -> str:
-    """Generate a short emoji summary of a message using the LLM."""
-    prompt = f"""Summarize the following message using 1-3 emojis that capture its main sentiment and topic.
-Only output the emojis, nothing else.
+async def generate_emoji_summary(message: str, topic: str = "") -> str:
+    """Generate a short emoji summary of a message using the LLM or simple heuristics in mock mode."""
+    
+    if not MODAL_INFERENCE_URL or "[Mock response]" in message:
+        import random
+        topic_emojis = {
+            "immigration": ["🌍", "🛂", "🏠", "👨‍👩‍👧‍👦"],
+            "budget": ["💰", "💵", "📊", "🏦"],
+            "security": ["🚔", "🔒", "🛡️", "👮"],
+            "education": ["📚", "🎓", "🏫", "👨‍🏫"],
+            "healthcare": ["🏥", "💊", "🩺", "👨‍⚕️"],
+            "environment": ["🌱", "♻️", "🌍", "🌳"],
+            "economy": ["📈", "💼", "🏭", "💹"]
+        }
+        
+        positive = ["👍", "✅", "😊", "💪"]
+        negative = ["👎", "❌", "😟", "⚠️"]
+        neutral = ["🤔", "💭", "📝", "💬"]
+        
+        selected_emojis = []
+        message_lower = message.lower() + " " + topic.lower()
+        
+        for key, emojis in topic_emojis.items():
+            if key in message_lower:
+                selected_emojis.append(random.choice(emojis))
+                break
+        
+        if any(word in message_lower for word in ["support", "agree", "good", "yes", "positive", "favor"]):
+            selected_emojis.append(random.choice(positive))
+        elif any(word in message_lower for word in ["oppose", "disagree", "bad", "no", "negative", "against"]):
+            selected_emojis.append(random.choice(negative))
+        else:
+            selected_emojis.append(random.choice(neutral))
+        
+        if not selected_emojis:
+            selected_emojis = [random.choice(neutral), "💬"]
+        
+        return "".join(selected_emojis[:3])
+    
+    prompt = f"""Given the meeting topic '{topic}' and this utterance, return 1-3 emojis capturing the domain and sentiment (e.g., policy area + 👍/👎).
+Only output emojis, nothing else.
 
 Message: {message[:200]}
 
@@ -132,6 +169,8 @@ Emojis:"""
         system_prompt = "You are a helpful assistant that summarizes text with emojis."
         response = await call_llm(system_prompt, [{"role": "user", "content": prompt}], temperature=0.3, max_tokens=20)
         emojis = response.strip()
+        import re
+        emojis = re.sub(r'[^\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]', '', emojis)
         if len(emojis) > 20:
             emojis = emojis[:20]
         return emojis if emojis else "💬"
@@ -574,8 +613,8 @@ You are giving your opening statement to the voters. What do you want to say? (R
 You are giving your opening statement to the voters. What do you want to say? (Respond in character, 2-3 sentences.)"""
     p2_message = await call_llm(politician_2_config["system_prompt"], [{"role": "user", "content": p2_opening_prompt}])
     
-    p1_emoji = await generate_emoji_summary(p1_message)
-    p2_emoji = await generate_emoji_summary(p2_message)
+    p1_emoji = await generate_emoji_summary(p1_message, request.topic)
+    p2_emoji = await generate_emoji_summary(p2_message, request.topic)
 
     town_hall_history.append({
         "speaker": "politician_1",
@@ -685,7 +724,7 @@ You are giving your opening statement to the voters. What do you want to say? (R
             
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
             
-            emoji_summary = await generate_emoji_summary(response)
+            emoji_summary = await generate_emoji_summary(response, request.topic)
             
             town_hall_history.append({
                 "speaker": agent_key,
