@@ -59,6 +59,7 @@ const GRID_ROWS = Math.floor(400 / CELL_SIZE)
 const SPRITE_FRAME_WIDTH = 32
 const SPRITE_FRAME_HEIGHT = 32
 const LECTERN = { gridX: Math.floor(21 / 2), gridY: 3 }
+const getLecternSpot = () => ({ x: LECTERN.gridX, y: LECTERN.gridY - 1 })
 
 function App() {
   const [trajectory, setTrajectory] = useState<Trajectory | null>(null)
@@ -243,8 +244,9 @@ function App() {
             occupiedCells.add(`${pos.gridX},${pos.gridY}`)
           }
           
+          const spot = getLecternSpot()
           if (speakerState === 'moving_to_lectern' && isCurrentSpeaker && 
-              pos.gridX === LECTERN.gridX && pos.gridY === LECTERN.gridY) {
+              pos.gridX === spot.x && pos.gridY === spot.y) {
             pos.isMoving = false
             pos.animFrame = 1
             pos.direction = 'down'
@@ -252,7 +254,7 @@ function App() {
           }
           
           if (speakerState === 'leaving_lectern' && isCurrentSpeaker && 
-              (pos.gridX !== LECTERN.gridX || pos.gridY !== LECTERN.gridY)) {
+              (pos.gridX !== spot.x || pos.gridY !== spot.y)) {
             setLecternOccupiedBy(null)
             setSpeakerState('done')
             setCurrentSpeechIndex(prev => prev + 1)
@@ -340,11 +342,12 @@ function App() {
           if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
         })
         
-        const path = bfs(pos.gridX, pos.gridY, LECTERN.gridX, LECTERN.gridY, occupiedCells)
+        const spot = getLecternSpot()
+        const path = bfs(pos.gridX, pos.gridY, spot.x, spot.y, occupiedCells)
         if (path.length > 0) {
           pos.path = path
-          pos.targetGridX = LECTERN.gridX
-          pos.targetGridY = LECTERN.gridY
+          pos.targetGridX = spot.x
+          pos.targetGridY = spot.y
           pos.isMoving = true
         }
         
@@ -511,58 +514,6 @@ function App() {
                 imageRendering: 'pixelated'
               }}
             />
-            <div 
-              className="absolute"
-              style={{
-                left: '50px',
-                top: '50px',
-                width: `${GRID_COLS * CELL_SIZE}px`,
-                height: '32px',
-                backgroundImage: 'url(/tiles/wall.png)',
-                backgroundSize: '32px 32px',
-                imageRendering: 'pixelated',
-                zIndex: 0
-              }}
-            />
-            <div 
-              className="absolute"
-              style={{
-                left: '50px',
-                top: `${50 + GRID_ROWS * CELL_SIZE}px`,
-                width: `${GRID_COLS * CELL_SIZE}px`,
-                height: '32px',
-                backgroundImage: 'url(/tiles/wall.png)',
-                backgroundSize: '32px 32px',
-                imageRendering: 'pixelated',
-                zIndex: 0
-              }}
-            />
-            <div 
-              className="absolute"
-              style={{
-                left: '50px',
-                top: '50px',
-                width: '32px',
-                height: `${GRID_ROWS * CELL_SIZE}px`,
-                backgroundImage: 'url(/tiles/wall.png)',
-                backgroundSize: '32px 32px',
-                imageRendering: 'pixelated',
-                zIndex: 0
-              }}
-            />
-            <div 
-              className="absolute"
-              style={{
-                left: `${50 + GRID_COLS * CELL_SIZE}px`,
-                top: '50px',
-                width: '32px',
-                height: `${GRID_ROWS * CELL_SIZE}px`,
-                backgroundImage: 'url(/tiles/wall.png)',
-                backgroundSize: '32px 32px',
-                imageRendering: 'pixelated',
-                zIndex: 0
-              }}
-            />
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               <text x="400" y="30" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">
                 Town Hall
@@ -591,6 +542,11 @@ function App() {
               const isSpeaking = currentSpeech?.character_id === char.id
               const directionRow = getDirectionRow(pos.direction)
               const frameCol = pos.animFrame
+              
+              const debugBorder = 
+                char.id === lecternOccupiedBy && speakerState === 'speaking' ? '3px solid #22c55e' :
+                (char.id === lecternOccupiedBy && speakerState === 'moving_to_lectern') || pos.isMoving ? '3px solid #ef4444' :
+                'none'
 
               return (
                 <div
@@ -613,7 +569,7 @@ function App() {
                         backgroundPosition: `-${frameCol * SPRITE_FRAME_WIDTH}px -${directionRow * SPRITE_FRAME_HEIGHT}px`,
                         backgroundRepeat: 'no-repeat',
                         imageRendering: 'pixelated',
-                        border: isSpeaking ? '2px solid #FBBF24' : 'none',
+                        border: debugBorder,
                         borderRadius: '4px'
                       }}
                     />
