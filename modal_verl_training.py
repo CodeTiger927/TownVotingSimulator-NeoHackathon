@@ -45,6 +45,7 @@ verl_image = (
         "hydra-core==1.3.2",
         "trl==0.9.6",
         "pybase64",
+        "pyzmq",
         "sglang",
     )
     .run_commands(
@@ -76,7 +77,7 @@ def backend_asgi():
     """
     import sys
     sys.path.insert(0, "/root")
-    
+
     from main import app as fastapi_app
     return fastapi_app
 
@@ -101,7 +102,7 @@ def run_verl_training(
 ):
     """
     Run veRL PPO training on 8xH100 GPUs.
-    
+
     Args:
         backend_url: URL of the deployed FastAPI backend
         model_name: HuggingFace model to train
@@ -115,25 +116,25 @@ def run_verl_training(
     import json
     import sys
     from pathlib import Path
-    
+
     print(f"Starting veRL training on 8xH100 GPUs")
     print(f"Backend URL: {backend_url}")
     print(f"Model: {model_name}")
     print(f"Episodes: {num_episodes}")
     print(f"Topic: {topic}")
-    
+
     work_dir = Path("/data/verl_training")
     work_dir.mkdir(parents=True, exist_ok=True)
-    
+
     config_dir = work_dir / "config"
     config_dir.mkdir(exist_ok=True)
-    
+
     datasets_dir = work_dir / "datasets"
     datasets_dir.mkdir(exist_ok=True)
-    
+
     output_dir = work_dir / "outputs"
     output_dir.mkdir(exist_ok=True)
-    
+
     interaction_config = {
         "interaction": [
             {
@@ -150,10 +151,10 @@ def run_verl_training(
             }
         ]
     }
-    
-    with open(config_dir / "interaction.yaml", "w") as f:
+
+    with open(config_dir / "interaction.yaml", mode="w") as f:
         yaml.dump(interaction_config, f)
-    
+
     batch_size = max(num_episodes * 32, 32)
     dataset_samples = [
         {
@@ -161,14 +162,14 @@ def run_verl_training(
         }
         for _ in range(batch_size)
     ]
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset_samples)
     dataset_file = datasets_dir / "debate_samples.parquet"
     df.to_parquet(dataset_file, index=False)
-    
+
     print(f"Created interaction config and dataset in {config_dir}")
-    
+
     print("\n" + "="*80)
     print("veRL Training Configuration Summary")
     print("="*80)
@@ -180,11 +181,11 @@ def run_verl_training(
     print(f"Learning Rate: {learning_rate}")
     print(f"Dataset: {dataset_file}")
     print(f"Output Dir: {output_dir}")
-    
+
     import torch
     gpu_count = torch.cuda.device_count()
     print(f"GPUs Available: {gpu_count}")
-    
+
     print("\nVerifying PyTorch DTensor support...")
     print(f"PyTorch version: {torch.__version__}")
     print(f"CUDA version: {torch.version.cuda}")
@@ -202,7 +203,7 @@ def run_verl_training(
             "message": f"PyTorch {torch.__version__} does not expose DTensor in torch.distributed.tensor"
         }
     print("="*80 + "\n")
-    
+
     print("Probing backend URL to verify connectivity...")
     import httpx
     try:
@@ -218,13 +219,13 @@ def run_verl_training(
     except Exception as e:
         print(f"⚠ Warning: Could not reach backend: {e}")
         print("Continuing anyway - backend may start during training...")
-    
+
     print("\n" + "="*80)
     print("Starting veRL PPO Training")
     print("="*80 + "\n")
-    
+
     import subprocess
-    
+
     training_args = [
         sys.executable, "-m", "verl.trainer.main_ppo",
         f"actor_rollout_ref.rollout.name=sglang",
@@ -249,10 +250,10 @@ def run_verl_training(
         f"trainer.val_before_train=false",
         "trainer.logger=[console]",
     ]
-    
+
     print(f"Running command: {' '.join(training_args)}")
     print("\n" + "-"*80 + "\n")
-    
+
     try:
         result = subprocess.run(
             training_args,
@@ -261,11 +262,11 @@ def run_verl_training(
             capture_output=False,  # Stream to Modal logs
             text=True
         )
-        
+
         print("\n" + "-"*80)
         print("✓ Training completed successfully!")
         print("-"*80 + "\n")
-        
+
         return {
             "status": "training_completed",
             "exit_code": result.returncode,
@@ -275,7 +276,7 @@ def run_verl_training(
             "num_episodes": num_episodes,
             "message": "veRL PPO training completed successfully"
         }
-        
+
     except subprocess.CalledProcessError as e:
         print(f"\n✗ Training failed with exit code {e.returncode}")
         print(f"Error: {e}")
@@ -313,16 +314,16 @@ def check_verl_config():
     import subprocess
     import sys
     import os
-    
+
     print("="*80)
     print("Checking veRL installation and config structure")
     print("="*80 + "\n")
-    
+
     try:
         import verl
         verl_dir = os.path.dirname(verl.__file__)
         print(f"veRL installed at: {verl_dir}\n")
-        
+
         config_path = os.path.join(verl_dir, "config")
         if os.path.exists(config_path):
             print(f"Config directory found at: {config_path}")
@@ -335,11 +336,11 @@ def check_verl_config():
             print()
     except Exception as e:
         print(f"Error finding veRL: {e}\n")
-    
+
     print("="*80)
     print("Running: python -m verl.trainer.main_ppo --help")
     print("="*80 + "\n")
-    
+
     try:
         result = subprocess.run(
             [sys.executable, "-m", "verl.trainer.main_ppo", "--help"],
@@ -352,11 +353,11 @@ def check_verl_config():
             print("STDERR:", result.stderr)
     except Exception as e:
         print(f"Error running --help: {e}")
-    
+
     print("\n" + "="*80)
     print("Running: python -m verl.trainer.main_ppo --cfg job")
     print("="*80 + "\n")
-    
+
     try:
         result = subprocess.run(
             [sys.executable, "-m", "verl.trainer.main_ppo", "--cfg", "job"],
@@ -369,7 +370,7 @@ def check_verl_config():
             print("STDERR:", result.stderr)
     except Exception as e:
         print(f"Error running --cfg job: {e}")
-    
+
     return {"status": "complete"}
 
 
@@ -381,28 +382,28 @@ def main(
 ):
     """
     Main entrypoint for running veRL training on Modal.
-    
+
     Usage:
         modal run modal_verl_training.py --num-episodes 5 --topic immigration
     """
     import json
-    
+
     backend_url = "https://anthonyindeepspace--townhall-verl-training-backend-asgi-dev.modal.run"
     print(f"Using FastAPI backend at: {backend_url}")
-    
+
     print(f"\nStarting veRL training for {num_episodes} episodes on topic: {topic}")
-    
+
     result = run_verl_training.remote(
         backend_url=backend_url,
         model_name=model_name,
         num_episodes=num_episodes,
         topic=topic,
     )
-    
+
     print("\n" + "="*80)
     print("Training Result:")
     print("="*80)
     print(json.dumps(result, indent=2))
     print("="*80)
-    
+
     return result
