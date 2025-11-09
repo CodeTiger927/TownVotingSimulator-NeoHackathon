@@ -150,11 +150,12 @@ def run_verl_training(
     with open(config_dir / "interaction.yaml", "w") as f:
         yaml.dump(interaction_config, f)
     
+    batch_size = max(num_episodes * 32, 32)
     dataset_samples = [
         {
             "prompt": "You are a political candidate. Be persuasive and concise.",
         }
-        for _ in range(max(num_episodes * 8, 8))
+        for _ in range(batch_size)
     ]
     
     import pandas as pd
@@ -220,7 +221,6 @@ def run_verl_training(
     
     import subprocess
     
-    batch_size = max(num_episodes * 8, 8)
     training_args = [
         sys.executable, "-m", "verl.trainer.main_ppo",
         f"actor_rollout_ref.rollout.name=sglang",
