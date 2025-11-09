@@ -83,14 +83,14 @@ function App() {
     setTrajectory(data)
     setCurrentSpeechIndex(0)
     setShowFinalState(false)
-    
+
     const positions: Record<string, GridPosition> = {}
     const occupiedCells = new Set<string>()
-    
+
     data.characters.forEach((char, idx) => {
       let gridX = 1 + (idx % (GRID_COLS - 2))
       let gridY = 1 + Math.floor(idx / (GRID_COLS - 2))
-      
+
       while (occupiedCells.has(`${gridX},${gridY}`)) {
         gridX++
         if (gridX >= GRID_COLS - 1) {
@@ -98,9 +98,9 @@ function App() {
           gridY++
         }
       }
-      
+
       occupiedCells.add(`${gridX},${gridY}`)
-      
+
       positions[char.id] = {
         gridX,
         gridY,
@@ -127,21 +127,21 @@ function App() {
   const bfs = (startX: number, startY: number, endX: number, endY: number, occupied: Set<string>): {x: number, y: number}[] => {
     const queue: {x: number, y: number, path: {x: number, y: number}[]}[] = [{x: startX, y: startY, path: []}]
     const visited = new Set<string>([`${startX},${startY}`])
-    
+
     while (queue.length > 0) {
       const current = queue.shift()!
-      
+
       if (current.x === endX && current.y === endY) {
         return current.path
       }
-      
+
       const neighbors = [
         {x: current.x, y: current.y - 1},
         {x: current.x - 1, y: current.y},
         {x: current.x + 1, y: current.y},
         {x: current.x, y: current.y + 1}
       ]
-      
+
       for (const next of neighbors) {
         const key = `${next.x},${next.y}`
         if (next.x >= 1 && next.x < GRID_COLS - 1 &&
@@ -157,7 +157,7 @@ function App() {
         }
       }
     }
-    
+
     return []
   }
 
@@ -170,34 +170,38 @@ function App() {
 
     if (shouldMove) {
       lastMoveTimeRef.current = now
-      
+
       setCharacterPositions(prev => {
         const newPositions = { ...prev }
         const occupiedCells = new Set<string>()
-        
+
         Object.values(newPositions).forEach(pos => {
           occupiedCells.add(`${pos.gridX},${pos.gridY}`)
         })
-        
+
         trajectory.characters.forEach(char => {
           const pos = newPositions[char.id]
           if (!pos) return
-          
+
           const isCurrentSpeaker = lecternOccupiedBy === char.id
+          
+          if (isCurrentSpeaker && pos.path.length > 0) {
+            console.log('SPEAKER MOVING:', char.id, 'at', pos.gridX, pos.gridY, 'target', pos.targetGridX, pos.targetGridY, 'path length', pos.path.length, 'speakerState', speakerState)
+          }
           
           if (char.id !== lecternOccupiedBy || speakerState !== 'moving_to_lectern') {
             occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
           }
-          
+
           if (pos.path.length === 0) {
             if (!isCurrentSpeaker && speakerState !== 'moving_to_lectern' && speakerState !== 'speaking' && speakerState !== 'leaving_lectern' && Math.random() < 0.3) {
               const targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
               const targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
-              
+
               occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
               const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
               occupiedCells.add(`${pos.gridX},${pos.gridY}`)
-              
+
               if (path.length > 0) {
                 pos.path = path
                 pos.targetGridX = targetX
@@ -208,24 +212,24 @@ function App() {
           }else {
             const nextCell = pos.path[0]
             const nextKey = `${nextCell.x},${nextCell.y}`
-            
+
             occupiedCells.delete(`${pos.gridX},${pos.gridY}`)
-            
+
             if (!occupiedCells.has(nextKey)) {
               const dx = nextCell.x - pos.gridX
               const dy = nextCell.y - pos.gridY
-              
+
               if (dy < 0) pos.direction = 'up'
               else if (dy > 0) pos.direction = 'down'
               else if (dx < 0) pos.direction = 'left'
               else if (dx > 0) pos.direction = 'right'
-              
+
               pos.gridX = nextCell.x
               pos.gridY = nextCell.y
               pos.pixelX = 50 + pos.gridX * CELL_SIZE + CELL_SIZE / 2
               pos.pixelY = 50 + pos.gridY * CELL_SIZE + CELL_SIZE / 2
               pos.path.shift()
-              
+
               if (pos.path.length === 0) {
                 pos.isMoving = false
                 pos.animFrame = 1
@@ -240,14 +244,17 @@ function App() {
                 pos.animFrame = 1
               }
             }
-            
+
             occupiedCells.add(`${pos.gridX},${pos.gridY}`)
           }
-          
+
           const spot = getLecternSpot()
+          if (isCurrentSpeaker) {
+            console.log('CHECKING ARRIVAL:', char.id, 'pos:', pos.gridX, pos.gridY, 'spot:', spot.x, spot.y, 'speakerState:', speakerState, 'match:', pos.gridX === spot.x && pos.gridY === spot.y)
+          }
           if (speakerState === 'moving_to_lectern' && isCurrentSpeaker && 
               pos.gridX === spot.x && pos.gridY === spot.y) {
-            console.log('ARRIVED AT LECTERN:', char.id, 'at', pos.gridX, pos.gridY)
+            console.log('✅ ARRIVED AT LECTERN:', char.id, 'at', pos.gridX, pos.gridY)
             pos.path = []
             pos.isMoving = false
             pos.animFrame = 1
@@ -256,29 +263,29 @@ function App() {
             pos.targetGridY = pos.gridY
             setSpeakerState('speaking')
           }
-          
-          if (speakerState === 'leaving_lectern' && isCurrentSpeaker && 
+
+          if (speakerState === 'leaving_lectern' && isCurrentSpeaker &&
               (pos.gridX !== spot.x || pos.gridY !== spot.y)) {
             setLecternOccupiedBy(null)
             setSpeakerState('done')
             setCurrentSpeechIndex(prev => prev + 1)
           }
         })
-        
+
         return newPositions
       })
     }
-    
+
     if (shouldAnimFrame) {
       lastAnimFrameTimeRef.current = now
-      
+
       setCharacterPositions(prev => {
         const newPositions = { ...prev }
-        
+
         trajectory.characters.forEach(char => {
           const pos = newPositions[char.id]
           if (!pos) return
-          
+
           if (lecternOccupiedBy === char.id && speakerState === 'speaking') {
             pos.animFrame = 1
             pos.isMoving = false
@@ -288,7 +295,7 @@ function App() {
             pos.animFrame = 1
           }
         })
-        
+
         return newPositions
       })
     }
@@ -299,7 +306,7 @@ function App() {
       updateCharacterPositions()
       animationFrameRef.current = requestAnimationFrame(animate)
     }
-    
+
     if (trajectory) {
       animationFrameRef.current = requestAnimationFrame(animate)
     }
@@ -325,6 +332,7 @@ function App() {
     const speakerId = trajectory.speeches[currentSpeechIndex].character_id
     setLecternOccupiedBy(speakerId)
     setSpeakerState('moving_to_lectern')
+    console.log("Character " + speakerId + " is moving to the lectern")
     plannedMoveToLecternRef.current = false
     plannedExitRef.current = false
     speakingTimerStartedRef.current = false
@@ -341,21 +349,23 @@ function App() {
         const newPositions = { ...prev }
         const pos = newPositions[speakerId]
         if (!pos) return prev
-        
+
         const occupiedCells = new Set<string>()
         Object.values(newPositions).forEach(p => {
           if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
         })
-        
+
         const spot = getLecternSpot()
+        console.log('PLANNING PATH TO LECTERN:', speakerId, 'from', pos.gridX, pos.gridY, 'to', spot.x, spot.y)
         const path = bfs(pos.gridX, pos.gridY, spot.x, spot.y, occupiedCells)
+        console.log('PATH LENGTH:', path.length, 'PATH:', path)
         if (path.length > 0) {
           pos.path = path
           pos.targetGridX = spot.x
           pos.targetGridY = spot.y
           pos.isMoving = true
         }
-        
+
         return newPositions
       })
       plannedMoveToLecternRef.current = true
@@ -364,7 +374,7 @@ function App() {
     if (speakerState === 'speaking' && !speakingTimerStartedRef.current) {
       const words = speech.message.trim().split(/\s+/).filter(Boolean).length
       const durationMs = Math.max(2500, Math.min(15000, words * 300))
-      
+
       if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
       speechTimerRef.current = window.setTimeout(() => {
         setSpeakerState('leaving_lectern')
@@ -377,20 +387,20 @@ function App() {
         const newPositions = { ...prev }
         const pos = newPositions[speakerId]
         if (!pos) return prev
-        
+
         if (pos.path.length === 0) {
           const occupiedCells = new Set<string>()
           Object.values(newPositions).forEach(p => {
             if (p !== pos) occupiedCells.add(`${p.gridX},${p.gridY}`)
           })
           occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
-          
+
           let targetX, targetY
           do {
             targetX = 1 + Math.floor(Math.random() * (GRID_COLS - 2))
             targetY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2))
           } while (Math.abs(targetX - LECTERN.gridX) < 2 && Math.abs(targetY - LECTERN.gridY) < 2)
-          
+
           const path = bfs(pos.gridX, pos.gridY, targetX, targetY, occupiedCells)
           if (path.length > 0) {
             pos.path = path
@@ -399,7 +409,7 @@ function App() {
             pos.isMoving = true
           }
         }
-        
+
         return newPositions
       })
       plannedExitRef.current = true
@@ -506,7 +516,7 @@ function App() {
           </div>
 
           <div className="flex-1 relative" style={{ backgroundColor: '#3a2a1a' }}>
-            <div 
+            <div
               className="absolute"
               style={{
                 left: '50px',
@@ -547,8 +557,8 @@ function App() {
               const isSpeaking = currentSpeech?.character_id === char.id
               const directionRow = getDirectionRow(pos.direction)
               const frameCol = pos.animFrame
-              
-              const debugBorder = 
+
+              const debugBorder =
                 char.id === lecternOccupiedBy && speakerState === 'speaking' ? '3px solid #22c55e' :
                 (char.id === lecternOccupiedBy && speakerState === 'moving_to_lectern') || pos.isMoving ? '3px solid #ef4444' :
                 'none'
