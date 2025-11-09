@@ -52,7 +52,7 @@ echo "Starting town hall conversation..."
 echo "=========================================="
 echo ""
 
-RESPONSE=$(curl -s -X POST "${BASE_URL}/townhall" \
+RESPONSE=$(curl -s -X POST "${BASE_URL}/simulate_town" \
     -H "Content-Type: application/json" \
     -d "{
         \"topic\": \"${TOPIC}\"
@@ -83,17 +83,11 @@ try:
         agent = response.get('agent', 'Unknown')
         message = response.get('response', 'No response')
         round_num = response.get('round', '?')
-        
-        import re
-        original_length = len(str(message))
-        message = re.sub(r'<think>.*?</think>', '', message, flags=re.DOTALL).strip()
-        
-        persuasion_deltas = response.get('persuasion_deltas', {})
+                
         
         print(f\"\n{agent} (Round {round_num}):\")
-        print(f\"  [DEBUG: Original length: {original_length}, After strip: {len(message)}]\")
         if message:
-            print(f\"  {message[:1000]}{'...' if len(message) > 1000 else ''}\")
+            print(f\"  {message[:2000]}{'...' if len(message) > 2000 else ''}\")
         else:
             print(f\"  [No response or response was only thinking]\")
     

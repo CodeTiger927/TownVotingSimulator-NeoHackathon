@@ -23,7 +23,7 @@ MEMORY_DIR.mkdir(exist_ok=True)
 # "https://your-modal-app.modal.run/v1/chat/completions"
 QWEN_API_URL = os.getenv("QWEN_API_URL")
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
-QWEN_MODEL_NAME = os.getenv("QWEN_MODEL_NAME", "Qwen3-8B-Instruct")
+QWEN_MODEL_NAME = os.getenv("QWEN_MODEL_NAME", "Qwen3-8B-FP8")
 
 AGENT_DEFS: Dict[AgentId, Dict[str, str]] = {
     "waitress": {

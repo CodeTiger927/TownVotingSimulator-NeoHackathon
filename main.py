@@ -22,6 +22,12 @@ from agent_configs import AGENT_CONFIGS, POLICY_TOPICS, get_initial_memory
 
 load_dotenv()
 
+agent_memories: Dict[str, dict] = {}
+# Three locations in the town
+LOCATIONS = ["town_square", "church", "tavern"]
+
+# Current location of each agent (villagers + politicians)
+agent_locations: Dict[str, str] = {}
 
 app = FastAPI(title="Town Voting Simulator API")
 
@@ -126,6 +132,7 @@ async def update_agent_summary(agent_key: str):
     Update an agent's memory summary using the LLM.
     Creates a brief summary of their current values, concerns, and any shifts.
     """
+    print("updating agent summary for agent ", agent_key)
     agent_config = AGENT_CONFIGS[agent_key]
     agent_memory = agent_memories[agent_key]
     
@@ -150,7 +157,8 @@ Output ONLY the summary, no other text."""
     messages = [{"role": "user", "content": summarization_prompt}]
     summary = await call_llm(agent_config["system_prompt"], messages)
     
-    agent_memory["summary"] = summary[:500]  # Cap at 500 chars
+    agent_memory["summary"] = summary[:5000]  # Cap at 1000 chars
+    print("summary for agent ", agent_key, " is ", agent_memory["summary"], " \n their memories are ", agent_memory["conversation_history"][-10:])
 
 
 async def get_llm_voting_decision(agent_key: str) -> dict:
@@ -196,13 +204,13 @@ async def get_llm_voting_decision(agent_key: str) -> dict:
     
     voting_prompt = f"""You are deciding who to vote for in an election. Here is the context:
 
-YOUR CURRENT STANCE:
+SUMMARY OF YOUR MEMORIES:
 {summary_text}
 
-POLITICIAN POLICIES:
-{p1_summary}
 
-{p2_summary}
+YOUR RECENT MEMORIES:
+{agent_memory["conversation_history"][-5:]["content"]}
+
 
 YOUR RECENT INTERACTIONS:
 With Alex:
@@ -225,6 +233,7 @@ The confidence field must be exactly one of: low, medium, or high"""
     # print("summary_text: ", summary_text)
     
     messages = [{"role": "user", "content": voting_prompt}]
+    print(" voting voting_prompt: ", voting_prompt)
     
     try:
         response = await call_llm(
@@ -322,7 +331,7 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
         return f"[Mock response] I understand your message. As an agent, I have my own views on this matter."
     
     try:
-        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        full_messages = [{"role": "system", "content": system_prompt}] + messages + [{"role": "assistant", "content": "<think>  </think>"}]
         
         # Ensure URL doesn't have trailing slash
         base_url = MODAL_INFERENCE_URL.rstrip('/')
@@ -368,7 +377,7 @@ async def call_llm(system_prompt: str, messages: List[dict], temperature: float 
                 
                 result = await resp.json()
                 response = result["choices"][0]["message"]["content"]
-                return (response)
+                return strip_think_tags(response)
     
     except aiohttp.ClientError as e:
         error_msg = f"Network error: {str(e)}"
@@ -438,6 +447,9 @@ async def talk_to_agent(request: TalkRequest):
     The agent will respond based on their personality and current memory.
     Updates persuasion score based on message content.
     """
+
+    # THIS IS NOT CURRENTLY BEING USED
+
     if request.agent_name not in AGENT_CONFIGS:
         raise HTTPException(status_code=404, detail=f"Agent '{request.agent_name}' not found")
     
@@ -484,6 +496,7 @@ async def broadcast_to_all(request: BroadcastRequest):
     based on the message and their personality.
     Updates persuasion scores based on message content.
     """
+    # THIS IS NOT CURRENTLY BEING USED
     if request.politician_id not in politician_policies:
         raise HTTPException(status_code=404, detail=f"Politician '{request.politician_id}' not found")
     
@@ -567,14 +580,12 @@ async def town_hall_conversation(request: TownHallRequest):
 
     # Add politician opening statements to town hall history
     town_hall_history.append({
-        "speaker": "politician_1",
-        "speaker_name": politician_1_config["full_name"],
+        "agent": politician_1_config["full_name"],
         "content": p1_message,
         "timestamp": datetime.now().isoformat()
     })
     town_hall_history.append({
-        "speaker": "politician_2",
-        "speaker_name": politician_2_config["full_name"],
+        "agent": politician_2_config["full_name"],
         "content": p2_message,
         "timestamp": datetime.now().isoformat()
     })
@@ -584,26 +595,24 @@ async def town_hall_conversation(request: TownHallRequest):
         agent_memory = agent_memories[agent_key]
         # Villagers' memories - record both politicians' opening statements
         agent_memory["conversation_history"].append({
-            "role": "townhall",
-            "content": p1_message,
-            "speaker": "politician_1",
-            "speaker_name": politician_1_config["full_name"],
+            "role": "user",
+            "content": politician_1_config["full_name"] + ": " + p1_message,
+            "agent": politician_1_config["full_name"],
             "politician_id": "politician_1",
             "topic": request.topic,
             "timestamp": datetime.now().isoformat()
         })
         agent_memory["conversation_history"].append({
-            "role": "townhall",
-            "content": p2_message,
-            "speaker": "politician_2",
-            "speaker_name": politician_2_config["full_name"],
+            "role": "user",
+            "content": politician_2_config["full_name"] + ": " + p2_message,
+            "agent": politician_2_config["full_name"],
             "politician_id": "politician_2",
             "topic": request.topic,
             "timestamp": datetime.now().isoformat()
         })
     
-    await update_agent_summary("politician_1")
-    await update_agent_summary("politician_2")
+    # await update_agent_summary("politician_1")
+    # await update_agent_summary("politician_2")
     
     all_responses.append({
         "agent": politician_1_config["full_name"],
@@ -630,16 +639,16 @@ async def town_hall_conversation(request: TownHallRequest):
             
             # Build conversation context from town hall history
             conversation_context = f"This is a town hall meeting about {request.topic}.\n\n"
-            conversation_context += "Here's what has been said so far:\n\n"
+            conversation_context += "Here is your entire memory about what has been said so far:\n\n"
             
-            for msg in town_hall_history:
-                conversation_context += f"{msg['speaker_name']}: {msg['content']}\n\n"
+            # for msg in town_hall_history:
+            #     conversation_context += f"{msg['agent']}: {msg['content']}\n\n"
             
-            conversation_context += "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
-            
+
             # Build messages for LLM with full conversation history
             conversation_messages = []
-            
+            conversation_messages.append({"role": "user", "content": conversation_context})
+
             # Add recent conversation history from agent's memory (last 5 messages)
             for msg in agent_memory["conversation_history"][-5:]:
                 if msg.get("role") == "user":
@@ -648,15 +657,17 @@ async def town_hall_conversation(request: TownHallRequest):
                     conversation_messages.append({"role": "assistant", "content": msg.get("content", "")})
             
             # Add the town hall context
+            conversation_context = "\nIt's your turn to speak. What do you want to say? (Respond in character, briefly - 1-3 sentences.)"
             conversation_messages.append({"role": "user", "content": conversation_context})
-            
+
             # Get agent's response
+            print("initial town hall, just called ", agent_config["full_name"])
+            print("conversation messages: ", conversation_messages)
             response = await call_llm(agent_config["system_prompt"], conversation_messages)
             
             # Add to town hall history
             town_hall_history.append({
-                "speaker": agent_key,
-                "speaker_name": agent_config["full_name"],
+                "agent": agent_config["full_name"],
                 "content": response,
                 "timestamp": datetime.now().isoformat()
             })
@@ -669,19 +680,17 @@ async def town_hall_conversation(request: TownHallRequest):
                     # This is the speaker's own memory - add as assistant
                     other_agent_memory["conversation_history"].append({
                         "role": "assistant",
-                        "content": response,
-                        "speaker": agent_key,
-                        "speaker_name": agent_config["full_name"],
+                        "content": agent_config["full_name"] + ": " + response,
+                        "agent": agent_config["full_name"],
                         "topic": request.topic,
                         "timestamp": datetime.now().isoformat()
                     })
                 else:
                     # This is another agent hearing this statement - add as townhall with speaker info
                     other_agent_memory["conversation_history"].append({
-                        "role": "townhall",
-                        "content": response,
-                        "speaker": agent_key,
-                        "speaker_name": agent_config["full_name"],
+                        "role": "user",
+                        "content": agent_config["full_name"] + ": " + response,
+                        "agent": agent_config["full_name"],
                         "politician_id": agent_key if agent_key in ["politician_1", "politician_2"] else None,
                         "topic": request.topic,
                         "timestamp": datetime.now().isoformat()
@@ -700,6 +709,201 @@ async def town_hall_conversation(request: TownHallRequest):
         "topic": request.topic,
         "agent_responses": all_responses,
         "conversation_history": town_hall_history
+    }
+
+
+
+async def run_mini_townhall_at_location(
+    agent_keys: List[str],
+    topic: str,
+    location: str,
+    step: int,
+    num_rounds: int = 1,
+):
+    """
+    Mini town hall at a single location with ANY number of agents.
+    Everyone shares a conversation history for this location; each round,
+    agents speak in random order.
+    """
+    location_history: List[dict] = []   # only for this location+step
+    all_turns: List[dict] = []
+    all_responses: List[dict] = []
+    print("MINI TOWN HALL STARTING WITH CHARACTERS: ", agent_keys)
+
+    for round_idx in range(1, num_rounds + 1):
+        speaking_order = agent_keys[:]
+        random.shuffle(speaking_order)
+
+        for agent_key in speaking_order:
+            agent_config = AGENT_CONFIGS[agent_key]
+            agent_memory = agent_memories[agent_key]
+
+            # Build a short shared-context summary for this mini town hall
+            other_names = [
+                AGENT_CONFIGS[k]["full_name"]
+                for k in agent_keys
+                if k != agent_key
+            ]
+
+            context_lines = [
+                f"You are at the {location} during step {step} of the campaign.",
+                f"You are in a small group conversation about {topic}.",
+            ]
+            if other_names:
+                context_lines.append(
+                    "The other people here are: " + ", ".join(other_names) + "."
+                )
+
+            # if location_history:
+            #     context_lines.append("\nSo far in this location discussion:")
+            #     # only include last few utterances to keep prompt small
+            #     for msg in location_history[-4:]:
+            #         context_lines.append(
+            #             f"{msg['agent']}: {msg['content']}"
+            #         )
+
+            
+            messages = []
+            full_context = "\n".join(context_lines)
+            messages.append({"role": "user", "content": full_context})
+
+            # Include a bit of this agent's personal history for continuity
+            for msg in agent_memory["conversation_history"][-5:]:
+                if msg.get("role") == "user":
+                    messages.append({"role": "user", "content": msg.get("content", "")})
+                elif msg.get("role") == "assistant":
+                    messages.append({"role": "assistant", "content": msg.get("content", "")})
+            
+            
+            messages.append({"role": "user", "content": "\nIt is your turn to speak. Respond in 1–3 sentences, in character."})
+
+            # Get the agent's utterance
+            print("full messages: for agent ", agent_config["full_name"], " are ", messages)
+            response = await call_llm(agent_config["system_prompt"], messages)
+            ts = datetime.now().isoformat()
+
+            # Add to local location history
+            turn = {
+                "agent": agent_config["full_name"],
+                "content": response,
+                "round": round_idx,
+                "step": step,
+                "location": location,
+                "timestamp": ts,
+                "response": response,
+            }
+            location_history.append(turn)
+            all_turns.append(turn)
+            all_responses.append(turn)
+            # Update every agent's memory with this utterance
+            for other_key in agent_keys:
+                other_memory = agent_memories[other_key]
+                if other_key == agent_key:
+                    # Speaker's own memory
+                    other_memory["conversation_history"].append({
+                        "role": "assistant",
+                        "content": response,
+                        "agent": agent_config["full_name"],
+                        "location": location,
+                        "topic": topic,
+                        "step": step,
+                        "round": round_idx,
+                        "timestamp": ts,
+                    })
+                else:
+                    # Others hearing this in the mini town hall
+                    other_memory["conversation_history"].append({
+                        "role": "location_chat",
+                        "content": agent_config["full_name"] + ": " + response,
+                        "agent": agent_config["full_name"],
+                        "location": location,
+                        "topic": topic,
+                        "step": step,
+                        "round": round_idx,
+                        "timestamp": ts,
+                    })
+
+            # (Optional) update summary after each agent speaks
+            await update_agent_summary(agent_key)
+
+    return {
+        "location": location,
+        "step": step,
+        "agents": agent_keys,
+        "history": location_history,
+    }
+
+class SimulationRequest(BaseModel):
+    topic: str
+    num_steps: int = 1           # how many timesteps
+    rounds_per_step: int = 1     # how many speaking rounds per location per timestep
+
+@app.post("/simulate_town")
+async def simulate_town(request: SimulationRequest):
+    """
+    Run a multi-timestep simulation:
+    1. Start with a full town hall (everyone together).
+    2. At each timestep, each agent moves or stays at one of the 3 locations.
+    3. At each location, all agents there participate in a mini town hall
+       (any number of agents). Each location's mini town hall runs concurrently.
+    """
+    topics = ["immigration", "budget"]
+    topic = random.choice(topics)
+    # 0) Full town hall first
+    initial_town_hall = await town_hall_conversation(
+        TownHallRequest(topic=topic, num_rounds=1)
+    )
+
+    all_responses = initial_town_hall["agent_responses"]
+
+    # 1) Initialize random locations for all agents
+    for agent_key in AGENT_CONFIGS.keys():
+        agent_locations[agent_key] = random.choice(LOCATIONS)
+
+    timeline = []
+
+    # 2) Timestep loop
+    for step in range(2, request.num_steps + 2):
+        # Movement decisions
+        for agent_key in AGENT_CONFIGS.keys():
+            current_loc = agent_locations.get(agent_key, random.choice(LOCATIONS))
+            if random.random() < 0.6:  # 60% chance to move
+                possible = [loc for loc in LOCATIONS if loc != current_loc]
+                agent_locations[agent_key] = random.choice(possible)
+            else:
+                agent_locations[agent_key] = current_loc
+
+        # Group agents by location
+        groups: Dict[str, List[str]] = {}
+        for agent_key, loc in agent_locations.items():
+            groups.setdefault(loc, []).append(agent_key)
+
+        step_entry = {
+            "step": step,
+            "locations": {loc: list(agents) for loc, agents in groups.items()},
+        }
+
+        # 3) Spawn one mini town hall per location (any number of agents)
+        for loc, agents_here in groups.items():
+            if not agents_here:
+                continue
+            topic = random.choice(topics)
+            new = await run_mini_townhall_at_location(
+                    agents_here,
+                    topic=topic,
+                    location=loc,
+                    step=step,
+                    num_rounds=request.rounds_per_step,
+                )
+            all_responses.extend(new["history"])
+            
+        timeline.append(step_entry)
+
+    return {
+        "topic": request.topic,
+        "initial_town_hall": initial_town_hall,
+        "agent_responses": all_responses,
+        "timeline": timeline,
     }
 
 
