@@ -32,7 +32,7 @@ verl_image = (
     .pip_install(
         "torch==2.5.1",
         "ray==2.9.3",
-        "transformers==4.36.0",
+        "transformers==4.45.0",
         "accelerate==0.25.0",
         "datasets==2.15.0",
         "peft==0.7.0",
