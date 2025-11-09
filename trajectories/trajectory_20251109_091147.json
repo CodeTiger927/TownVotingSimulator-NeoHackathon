@@ -1,0 +1,260 @@
+{
+  "metadata": {
+    "topic": "Healthcare Reform",
+    "num_rounds": 2,
+    "timestamp": "2025-11-09T09:11:47.019829",
+    "duration_seconds": 494.567574
+  },
+  "characters": [
+    {
+      "id": "politician_1",
+      "name": "Alex",
+      "role": "Politician 1",
+      "sprite": "alex_politician1.png",
+      "initial_position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "politician_2",
+      "name": "Anthony",
+      "role": "Politician 2",
+      "sprite": "anthony_politician2.png",
+      "initial_position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "waitress",
+      "name": "Sarah the Waitress",
+      "role": "Waitress",
+      "sprite": "sarah_waitress.png",
+      "initial_position": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "id": "librarian",
+      "name": "Margaret the Librarian",
+      "role": "Librarian",
+      "sprite": "margaret_librarian.png",
+      "initial_position": {
+        "x": 550,
+        "y": 100
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Brother Thomas",
+      "role": "Monk",
+      "sprite": "thomas_monk.png",
+      "initial_position": {
+        "x": 100,
+        "y": 250
+      }
+    },
+    {
+      "id": "police",
+      "name": "Officer James",
+      "role": "Police",
+      "sprite": "james_police.png",
+      "initial_position": {
+        "x": 250,
+        "y": 250
+      }
+    },
+    {
+      "id": "stay_at_home_mom",
+      "name": "Emily the Mother",
+      "role": "Stay-at-home Mom",
+      "sprite": "emily_mother.png",
+      "initial_position": {
+        "x": 400,
+        "y": 250
+      }
+    }
+  ],
+  "speeches": [
+    {
+      "round": 1,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Good evening, everyone. As someone who\u2019s spent years listening to the struggles of this community, I know healthcare isn\u2019t a privilege\u2014it\u2019s a right. A 2023 study in *The Lancet* found that 1 in 5 Americans skip care due to cost, and here in our village, that\u2019s a crisis we can\u2019t ignore. Tonight, I\u2019m here to listen, to learn, and to fight for a system that ensures every family can access the care they deserve\u2014without bankruptcy or shame. Together, we\u2019ll build something better.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcaa",
+      "timestamp": "2025-11-09T09:12:05.558683",
+      "sequence": 0
+    },
+    {
+      "round": 1,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "Good evening, folks. As your trusted leader, I believe healthcare should be about personal responsibility and preserving choice\u2014not expanding government overreach. My record as a lawyer and community advocate shows I fight to protect your rights and lower costs, not create new bureaucracies. Let\u2019s work together to keep our village strong, traditional, and free from unnecessary interference. What do you think?",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\ud83d\ude0a",
+      "timestamp": "2025-11-09T09:12:05.558685",
+      "sequence": 1
+    },
+    {
+      "round": 2,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "\"Brother Thomas: In our faith, caring for the sick is a sacred duty. While I agree that healthcare is a right, it must be guided by compassion and tradition. Let us ensure every soul in our village\u2014especially the vulnerable\u2014receives care, but let our charitable efforts remain rooted in our shared faith, not secular policies that dilute our spiritual heritage.\"",
+      "emoji_summary": "\ud83c\udfe5\ud83d\ude0a",
+      "timestamp": "2025-11-09T09:13:02.674541",
+      "sequence": 2
+    },
+    {
+      "round": 2,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "\"Healthcare\u2019s a right, but it\u2019s not just about coverage\u2014it\u2019s about keeping my paycheck from disappearing. I\u2019m for helping folks afford care, but we need solutions that don\u2019t raise taxes or add more layers of red tape. Let\u2019s make sure the system works for people like me",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcaa",
+      "timestamp": "2025-11-09T09:13:25.198973",
+      "sequence": 3
+    },
+    {
+      "round": 2,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "\"Healthcare is a right, but it\u2019s also a responsibility. My plan focuses on empowering families to make smart choices, not expanding government control. By supporting local clinics and tax incentives for providers, we can lower costs while preserving our village\u2019s traditions and freedom. Let\u2019s fix the system without losing our way.\"",
+      "emoji_summary": "\ud83e\ude7a\ud83d\ude0a",
+      "timestamp": "2025-11-09T09:13:53.108974",
+      "sequence": 4
+    },
+    {
+      "round": 2,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "\"Thank you. As a librarian, I\u2019ve seen firsthand how access to information empowers communities\u2014just as healthcare access empowers lives. The *Lancet* study Alex cited underscores a crisis: when people can\u2019t afford care, it\u2019s not just a financial issue\u2014it\u2019s a public health one. We need policies that expand access without sacrificing quality, investing in preventive care and community health programs, not just bureaucracy. Let\u2019s ensure every villager can thrive, not just survive.\"",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\u274c",
+      "timestamp": "2025-11-09T09:14:25.136585",
+      "sequence": 5
+    },
+    {
+      "round": 2,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Thank you, everyone. As Margaret noted, access to care isn\u2019t just about coverage\u2014it\u2019s about empowering communities. I\u2019m committed to expanding preventive care and community health programs, funded through progressive taxes on pharmaceutical profits, not individual paychecks. Let\u2019s build a system where no one chooses between medicine and meals, and where faith-based care and secular innovation coexist to heal, not divide.",
+      "emoji_summary": "\ud83c\udfe5\u26a0\ufe0f",
+      "timestamp": "2025-11-09T09:14:46.794954",
+      "sequence": 6
+    },
+    {
+      "round": 2,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "As a nurse who\u2019s seen families choose between medicine and meals, I agree that healthcare is a right\u2014but it must be accessible, affordable, and holistic. Let\u2019s invest in community",
+      "emoji_summary": "\ud83d\udc8a\ud83d\ude0a",
+      "timestamp": "2025-11-09T09:15:32.591538",
+      "sequence": 7
+    },
+    {
+      "round": 2,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "\"As a mother of three, I know healthcare isn\u2019t just about bills\u2014it\u2019s about keeping my kids healthy so they can learn, grow, and thrive. We need policies that expand access without crushing families, especially those already struggling. Let\u2019s invest in preventive care and community programs that protect our most vulnerable, ensuring every child can reach their full potential\u2014without fear or financial sacrifice.\"",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\ud83d\ude1f",
+      "timestamp": "2025-11-09T09:16:07.147018",
+      "sequence": 8
+    },
+    {
+      "round": 3,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "\"Brother Thomas: In our faith, caring for the sick is a sacred duty. Let us ensure every soul in our village\u2014especially the vulnerable\u2014receives care through faith-based charities and traditional compassion, not secular policies that dilute our spiritual heritage. Health spending must prioritize the poor, but let our charity remain rooted in prayer, not political agendas.\"",
+      "emoji_summary": "\ud83d\udc8a\ud83d\udcaa",
+      "timestamp": "2025-11-09T09:16:40.758376",
+      "sequence": 9
+    },
+    {
+      "round": 3,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "\"Thank you. As a librarian, I\u2019ve seen how education empowers communities\u2014just as healthcare does. Expanding access through preventive care and community programs, funded equitably, ensures no one sacrifices health for survival. Let\u2019s invest in both knowledge and care, bridging gaps with compassion, not bureaucracy\u2014because thriving villages are built on shared responsibility, not division.\"",
+      "emoji_summary": "\ud83c\udf93\ud83d\ude1f",
+      "timestamp": "2025-11-09T09:17:02.090360",
+      "sequence": 10
+    },
+    {
+      "round": 3,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "\"As a nurse and parent, I see the human cost of unmet needs\u2014families choosing between medicine and meals. Let\u2019s invest in preventive care and community clinics, funded through equitable taxes on big pharma, not individual paychecks. Our village thrives when we care for each other, not just when crises hit.\"",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\u26a0\ufe0f",
+      "timestamp": "2025-11-09T09:17:46.797558",
+      "sequence": 11
+    },
+    {
+      "round": 3,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Thank you, everyone. As Margaret and Emily emphasized, healthcare isn\u2019t just about coverage\u2014it\u2019s about preventing crises before they strike. I\u2019m committed to expanding preventive care through community clinics and equitable funding, drawing from the *Lancet*\u2019s call to action. Let\u2019s invest in holistic, accessible care that honors both our shared humanity and the traditions that bind us, ensuring no family faces a choice between health and hope.",
+      "emoji_summary": "\ud83d\udc8a\ud83d\ude1f",
+      "timestamp": "2025-11-09T09:18:16.971899",
+      "sequence": 12
+    },
+    {
+      "round": 3,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "As a community member, I believe healthcare reform must prioritize both prevention and accessibility. Let\u2019s invest in local clinics and mental health resources, ensuring every family has the tools to thrive\u2014without sacrificing our traditions or values.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\ude0a",
+      "timestamp": "2025-11-09T09:18:59.229680",
+      "sequence": 13
+    },
+    {
+      "round": 3,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "\"Healthcare\u2019s a right, but I can\u2019t afford another tax hike or red tape that takes from my paycheck. Let\u2019s make sure reforms help folks like me\u2014no more choosing between medicine and meals. Let\u2019s keep it simple, fair, and focused on real solutions, not bigger government.\"",
+      "emoji_summary": "\ud83c\udfe5\u2705",
+      "timestamp": "2025-11-09T09:19:32.181439",
+      "sequence": 14
+    },
+    {
+      "round": 3,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "\"Healthcare is a right, but it\u2019s about empowering families, not expanding government. My plan supports local clinics, tax breaks for providers, and faith-based charities to keep costs low and traditions strong. Let\u2019s fix the system without losing our values\u2014because a strong village thrives when we act together, not through big government.\"",
+      "emoji_summary": "\ud83d\udc8a\u2705",
+      "timestamp": "2025-11-09T09:19:50.613717",
+      "sequence": 15
+    }
+  ],
+  "final_state": {
+    "character_interests": [
+      {
+        "character_id": "waitress",
+        "character_name": "Sarah the Waitress",
+        "vote_intent": null,
+        "summary": "The person prioritizes expanding healthcare access through preventive care and equitable funding, emphasizing affordability and community support. They strongly oppose immigration, fearing job loss and wage suppression, and advocate for increased welfare spending to aid struggling families. No significant shifts in stance on immigration or budget policies are evident, as their focus remains on protecting working-class economic security."
+      },
+      {
+        "character_id": "librarian",
+        "character_name": "Margaret the Librarian",
+        "vote_intent": null,
+        "summary": "[Empty fallback] I understand your message."
+      },
+      {
+        "character_id": "monk",
+        "character_name": "Brother Thomas",
+        "vote_intent": null,
+        "summary": "Brother Thomas prioritizes faith-based immigration to preserve the village\u2019s spiritual character, opposing secular or multi-faith policies. He views healthcare as a sacred duty tied to tradition, advocating for compassionate, faith-guided care while resisting government overreach. His concerns center on balancing fiscal responsibility with moral obligations to the vulnerable, emphasizing local charity and traditional values over expansive public programs."
+      },
+      {
+        "character_id": "police",
+        "character_name": "Officer James",
+        "vote_intent": null,
+        "summary": "The individual prioritizes healthcare as a right, emphasizing accessible, affordable, and holistic care"
+      },
+      {
+        "character_id": "stay_at_home_mom",
+        "character_name": "Emily the Mother",
+        "vote_intent": null,
+        "summary": "The individual prioritizes healthcare as a fundamental right, emphasizing affordability, accessibility, and community-based solutions like faith-based care and local clinics. They advocate for preventive care and equitable funding through taxes on large corporations, balancing compassion with fiscal responsibility. Their stance reflects a shift toward empowering communities and addressing systemic inequities while resisting expanded government control."
+      }
+    ]
+  }
+}

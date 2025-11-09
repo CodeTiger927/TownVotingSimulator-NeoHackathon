@@ -1,0 +1,197 @@
+{
+  "metadata": {
+    "topic": "Healthcare Reform",
+    "num_rounds": 1,
+    "timestamp": "2025-11-09T08:45:48.341231",
+    "duration_seconds": 77.024158
+  },
+  "characters": [
+    {
+      "id": "politician_1",
+      "name": "Alex",
+      "role": "Politician 1",
+      "sprite": "alex_politician1.png",
+      "initial_position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "politician_2",
+      "name": "Anthony",
+      "role": "Politician 2",
+      "sprite": "anthony_politician2.png",
+      "initial_position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "waitress",
+      "name": "Sarah the Waitress",
+      "role": "Waitress",
+      "sprite": "sarah_waitress.png",
+      "initial_position": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "id": "librarian",
+      "name": "Margaret the Librarian",
+      "role": "Librarian",
+      "sprite": "margaret_librarian.png",
+      "initial_position": {
+        "x": 550,
+        "y": 100
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Brother Thomas",
+      "role": "Monk",
+      "sprite": "thomas_monk.png",
+      "initial_position": {
+        "x": 100,
+        "y": 250
+      }
+    },
+    {
+      "id": "police",
+      "name": "Officer James",
+      "role": "Police",
+      "sprite": "james_police.png",
+      "initial_position": {
+        "x": 250,
+        "y": 250
+      }
+    },
+    {
+      "id": "stay_at_home_mom",
+      "name": "Emily the Mother",
+      "role": "Stay-at-home Mom",
+      "sprite": "emily_mother.png",
+      "initial_position": {
+        "x": 400,
+        "y": 250
+      }
+    }
+  ],
+  "speeches": [
+    {
+      "round": 1,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:45:57.855727",
+      "sequence": 0
+    },
+    {
+      "round": 1,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:45:57.855730",
+      "sequence": 1
+    },
+    {
+      "round": 2,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:10.109650",
+      "sequence": 2
+    },
+    {
+      "round": 2,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:18.708589",
+      "sequence": 3
+    },
+    {
+      "round": 2,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:27.104307",
+      "sequence": 4
+    },
+    {
+      "round": 2,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:35.648838",
+      "sequence": 5
+    },
+    {
+      "round": 2,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:44.173702",
+      "sequence": 6
+    },
+    {
+      "round": 2,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:46:52.744564",
+      "sequence": 7
+    },
+    {
+      "round": 2,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:47:01.460256",
+      "sequence": 8
+    }
+  ],
+  "final_state": {
+    "character_interests": [
+      {
+        "character_id": "waitress",
+        "character_name": "Sarah the Waitress",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "librarian",
+        "character_name": "Margaret the Librarian",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "monk",
+        "character_name": "Brother Thomas",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "police",
+        "character_name": "Officer James",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "stay_at_home_mom",
+        "character_name": "Emily the Mother",
+        "vote_intent": null,
+        "summary": ""
+      }
+    ]
+  }
+}

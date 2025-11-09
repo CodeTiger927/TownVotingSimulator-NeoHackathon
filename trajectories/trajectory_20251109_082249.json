@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "topic": "Community Healthcare Reform",
+    "num_rounds": 3,
+    "timestamp": "2025-11-09T08:22:49.882109",
+    "duration_seconds": 0.000861
+  },
+  "characters": [
+    {
+      "id": "politician_1",
+      "name": "Alex",
+      "role": "Politician 1",
+      "sprite": "alex_politician1.png",
+      "initial_position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "politician_2",
+      "name": "Anthony",
+      "role": "Politician 2",
+      "sprite": "anthony_politician2.png",
+      "initial_position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "waitress",
+      "name": "Sarah the Waitress",
+      "role": "Waitress",
+      "sprite": "sarah_waitress.png",
+      "initial_position": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "id": "librarian",
+      "name": "Margaret the Librarian",
+      "role": "Librarian",
+      "sprite": "margaret_librarian.png",
+      "initial_position": {
+        "x": 550,
+        "y": 100
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Brother Thomas",
+      "role": "Monk",
+      "sprite": "thomas_monk.png",
+      "initial_position": {
+        "x": 100,
+        "y": 250
+      }
+    },
+    {
+      "id": "police",
+      "name": "Officer James",
+      "role": "Police",
+      "sprite": "james_police.png",
+      "initial_position": {
+        "x": 250,
+        "y": 250
+      }
+    },
+    {
+      "id": "stay_at_home_mom",
+      "name": "Emily the Mother",
+      "role": "Stay-at-home Mom",
+      "sprite": "emily_mother.png",
+      "initial_position": {
+        "x": 400,
+        "y": 250
+      }
+    }
+  ],
+  "speeches": [
+    {
+      "round": 1,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882218",
+      "sequence": 0
+    },
+    {
+      "round": 1,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882221",
+      "sequence": 1
+    },
+    {
+      "round": 2,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc8a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882299",
+      "sequence": 2
+    },
+    {
+      "round": 2,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc8a\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882335",
+      "sequence": 3
+    },
+    {
+      "round": 2,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882366",
+      "sequence": 4
+    },
+    {
+      "round": 2,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcac",
+      "timestamp": "2025-11-09T08:22:49.882396",
+      "sequence": 5
+    },
+    {
+      "round": 2,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\udcac",
+      "timestamp": "2025-11-09T08:22:49.882427",
+      "sequence": 6
+    },
+    {
+      "round": 2,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882459",
+      "sequence": 7
+    },
+    {
+      "round": 2,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\udcac",
+      "timestamp": "2025-11-09T08:22:49.882490",
+      "sequence": 8
+    },
+    {
+      "round": 3,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc8a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882527",
+      "sequence": 9
+    },
+    {
+      "round": 3,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\udcac",
+      "timestamp": "2025-11-09T08:22:49.882556",
+      "sequence": 10
+    },
+    {
+      "round": 3,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882588",
+      "sequence": 11
+    },
+    {
+      "round": 3,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882619",
+      "sequence": 12
+    },
+    {
+      "round": 3,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc8a\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882651",
+      "sequence": 13
+    },
+    {
+      "round": 3,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcdd",
+      "timestamp": "2025-11-09T08:22:49.882681",
+      "sequence": 14
+    },
+    {
+      "round": 3,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882712",
+      "sequence": 15
+    },
+    {
+      "round": 4,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882746",
+      "sequence": 16
+    },
+    {
+      "round": 4,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcdd",
+      "timestamp": "2025-11-09T08:22:49.882782",
+      "sequence": 17
+    },
+    {
+      "round": 4,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882813",
+      "sequence": 18
+    },
+    {
+      "round": 4,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83d\udc68\u200d\u2695\ufe0f\ud83d\udcac",
+      "timestamp": "2025-11-09T08:22:49.882844",
+      "sequence": 19
+    },
+    {
+      "round": 4,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83d\udcad",
+      "timestamp": "2025-11-09T08:22:49.882877",
+      "sequence": 20
+    },
+    {
+      "round": 4,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83c\udfe5\ud83d\udcdd",
+      "timestamp": "2025-11-09T08:22:49.882909",
+      "sequence": 21
+    },
+    {
+      "round": 4,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "[Mock response] I understand your message. As an agent, I have my own views on this matter.",
+      "emoji_summary": "\ud83e\ude7a\ud83e\udd14",
+      "timestamp": "2025-11-09T08:22:49.882950",
+      "sequence": 22
+    }
+  ],
+  "final_state": {
+    "character_interests": [
+      {
+        "character_id": "waitress",
+        "character_name": "Sarah the Waitress",
+        "vote_intent": null,
+        "summary": "[Mock response] I understand your message. As an agent, I have my own views on this matter."
+      },
+      {
+        "character_id": "librarian",
+        "character_name": "Margaret the Librarian",
+        "vote_intent": null,
+        "summary": "[Mock response] I understand your message. As an agent, I have my own views on this matter."
+      },
+      {
+        "character_id": "monk",
+        "character_name": "Brother Thomas",
+        "vote_intent": null,
+        "summary": "[Mock response] I understand your message. As an agent, I have my own views on this matter."
+      },
+      {
+        "character_id": "police",
+        "character_name": "Officer James",
+        "vote_intent": null,
+        "summary": "[Mock response] I understand your message. As an agent, I have my own views on this matter."
+      },
+      {
+        "character_id": "stay_at_home_mom",
+        "character_name": "Emily the Mother",
+        "vote_intent": null,
+        "summary": "[Mock response] I understand your message. As an agent, I have my own views on this matter."
+      }
+    ]
+  }
+}

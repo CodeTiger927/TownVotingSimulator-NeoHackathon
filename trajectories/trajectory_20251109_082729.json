@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "topic": "Community Healthcare Reform",
+    "num_rounds": 3,
+    "timestamp": "2025-11-09T08:27:29.753737",
+    "duration_seconds": 642.460195
+  },
+  "characters": [
+    {
+      "id": "politician_1",
+      "name": "Alex",
+      "role": "Politician 1",
+      "sprite": "alex_politician1.png",
+      "initial_position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "politician_2",
+      "name": "Anthony",
+      "role": "Politician 2",
+      "sprite": "anthony_politician2.png",
+      "initial_position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "waitress",
+      "name": "Sarah the Waitress",
+      "role": "Waitress",
+      "sprite": "sarah_waitress.png",
+      "initial_position": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "id": "librarian",
+      "name": "Margaret the Librarian",
+      "role": "Librarian",
+      "sprite": "margaret_librarian.png",
+      "initial_position": {
+        "x": 550,
+        "y": 100
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Brother Thomas",
+      "role": "Monk",
+      "sprite": "thomas_monk.png",
+      "initial_position": {
+        "x": 100,
+        "y": 250
+      }
+    },
+    {
+      "id": "police",
+      "name": "Officer James",
+      "role": "Police",
+      "sprite": "james_police.png",
+      "initial_position": {
+        "x": 250,
+        "y": 250
+      }
+    },
+    {
+      "id": "stay_at_home_mom",
+      "name": "Emily the Mother",
+      "role": "Stay-at-home Mom",
+      "sprite": "emily_mother.png",
+      "initial_position": {
+        "x": 400,
+        "y": 250
+      }
+    }
+  ],
+  "speeches": [
+    {
+      "round": 1,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Good evening, everyone. As someone who\u2019s spent my career fighting for equitable access to care, I believe healthcare isn\u2019t a privilege\u2014it\u2019s a right, and our community deserves a system that prioritizes people over profits. I\u2019ve studied the impacts of systemic neglect in rural areas, and I\u2019m inspired by the work of Dr. Atul Gawande, who reminds us that healthcare\u2019s true measure lies in its ability to *connect* us to the care we need. Tonight, I\u2019m here to listen, collaborate, and build a plan that ensures every villager\u2014regardless of income or circumstance\u2014can thrive.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:29:53.974571",
+      "sequence": 0
+    },
+    {
+      "round": 1,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "Good evening, everyone. As your candidate, I believe healthcare should remain a local priority, not a political battleground. We must protect existing systems that work\u2014fiscal responsibility, community-driven care, and ensuring no one is left behind. My resources will ensure this vision becomes reality, because this village deserves leaders who fight for its future, not handouts. Let\u2019s build together.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:29:53.974575",
+      "sequence": 1
+    },
+    {
+      "round": 2,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:30:30.053390",
+      "sequence": 2
+    },
+    {
+      "round": 2,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "As a mother of three, I want every child in our community to grow up healthy, not just wealthy. Access to quality healthcare isn\u2019t a luxury\u2014it\u2019s the foundation of a child\u2019s future. I support policies that invest in preventive care, mental health resources, and community clinics, because when families thrive, our entire village benefits. Let\u2019s prioritize people over profits and ensure no child is left behind.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:30:52.743796",
+      "sequence": 3
+    },
+    {
+      "round": 2,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "Thank you, everyone. As a librarian, I\u2019ve long believed that access to healthcare is inseparable from access to education\u2014both are pillars of equity. I\u2019m reminded of the WHO\u2019s emphasis on preventive care as a cost-effective strategy, and I\u2019d support expanding community clinics and mental health resources, especially for families like Emily\u2019s. Let\u2019s invest in systems that nurture both body and mind, ensuring no one\u2019s future is compromised by avoidable hardship.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:31:14.301346",
+      "sequence": 4
+    },
+    {
+      "round": 2,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:31:38.428126",
+      "sequence": 5
+    },
+    {
+      "round": 2,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Thank you, everyone. As a lifelong advocate for equity, I\u2019m reminded of the landmark study by the Robert Wood Johnson Foundation, which underscores that investing in preventive care reduces long-term costs and saves lives. Let\u2019s expand community clinics, prioritize mental health funding, and ensure no family faces financial barriers\u2014because healthcare isn\u2019t just about treating illness; it\u2019s about building a village where everyone can flourish. Together, we\u2019ll turn this vision into reality.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:31:59.874244",
+      "sequence": 6
+    },
+    {
+      "round": 2,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "Thank you. Healthcare is a local priority, not a political handout. I\u2019ll use my resources to strengthen existing systems\u2014fiscal responsibility, community-driven care, and ensuring no one is left behind. Let\u2019s protect what works and build a village where families thrive through accountability, not dependency.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:32:20.081708",
+      "sequence": 7
+    },
+    {
+      "round": 2,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:32:43.744833",
+      "sequence": 8
+    },
+    {
+      "round": 3,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "\"Good evening, brothers and sisters. As a servant of God, I believe healthcare is a sacred duty, not merely a policy. Let us invest wisely in our sick and poor, but with the humility and charity that honor our faith. Let our care reflect the love of",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:33:07.350904",
+      "sequence": 9
+    },
+    {
+      "round": 3,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "Thank you. Healthcare is a sacred trust, not a political promise. I\u2019ll ensure our village\u2019s existing clinics and caregivers are empowered with resources\u2014without expanding costly bureaucracies. Let\u2019s honor our traditions, protect family-driven care, and use my means to lift up those in need, not create dependency. Together, we\u2019ll build a system that works for all.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:33:26.481600",
+      "sequence": 10
+    },
+    {
+      "round": 3,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Thank you, Brother Thomas. As someone who believes in the power of community, I\u2019m reminded of *The Spirit Level* by Richard Wilkinson and Kate Pickett, which shows how social cohesion and equity reduce suffering. Let\u2019s invest in clinics, mental health, and education\u2014not as handouts, but as investments in",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:33:49.367789",
+      "sequence": 11
+    },
+    {
+      "round": 3,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:34:12.117330",
+      "sequence": 12
+    },
+    {
+      "round": 3,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:34:34.649621",
+      "sequence": 13
+    },
+    {
+      "round": 3,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "As a mother of three, I\u2019m here to say healthcare isn\u2019t just about treating sickness\u2014it\u2019s about giving my kids a chance to grow up healthy, not scared. We need more community clinics, mental health support, and preventive care so no family faces a crisis alone. Let\u2019s invest in people, not just policies, and ensure every child can thrive, not just survive.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:35:00.423507",
+      "sequence": 14
+    },
+    {
+      "round": 3,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "Thank you. As a librarian, I\u2019ve long seen how education and healthcare are intertwined\u2014both are pillars of equity. The WHO\u2019s emphasis on preventive care as a cost-effective strategy reminds us that investing in community clinics and mental health today ensures a healthier, more educated tomorrow. Let\u2019s prioritize systems that nurture both body and mind, so no one\u2019s future is compromised by avoidable hardship.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:35:24.060841",
+      "sequence": 15
+    },
+    {
+      "round": 4,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:35:46.390363",
+      "sequence": 16
+    },
+    {
+      "round": 4,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "As a librarian, I\u2019ve seen how education empowers health literacy\u2014studies show that higher education reduces preventable illnesses. Let\u2019s invest in both schools and clinics, because informed communities are healthier communities.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:36:07.726687",
+      "sequence": 17
+    },
+    {
+      "round": 4,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Thank you, everyone. As a lifelong advocate for equity, I\u2019m reminded of the *Healthy People 2030* initiative, which underscores that health equity isn\u2019t just about access\u2014it\u2019s about addressing the root causes of disparities. Let\u2019s expand clinics, fund mental health services, and invest in education to build a village where every family can thrive, not just survive. Together, we\u2019ll turn this vision into reality.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:36:27.521665",
+      "sequence": 18
+    },
+    {
+      "round": 4,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "\"Good evening. As a servant of God, I believe healthcare is a sacred duty, not merely a policy. Let us invest wisely in our sick and poor, but with the humility and charity that honor our faith. Let our care reflect the love of God, prioritizing family-driven support and protecting our village\u2019s spiritual character\u2014because faith and tradition are the foundation of true compassion.\"",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:36:48.989918",
+      "sequence": 19
+    },
+    {
+      "round": 4,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "Officer James: Healthcare is vital, but it must serve the village\u2019s safety and stability. Let\u2019s invest in clinics and mental health, but with accountability\u2014no handouts, just smart, secure systems that keep our community strong. A healthy population ensures order, and I\u2019ll back policies that protect both our people and our traditions.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:37:12.455920",
+      "sequence": 20
+    },
+    {
+      "round": 4,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:37:37.103711",
+      "sequence": 21
+    },
+    {
+      "round": 4,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "As a mother of three, I want every child in our village to grow up healthy, not just wealthy. We need more community clinics, mental health support, and preventive care so no family faces a crisis alone. Let\u2019s invest in people, not just policies, and ensure every child can thrive, not just survive.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T08:38:00.495276",
+      "sequence": 22
+    }
+  ],
+  "final_state": {
+    "character_interests": [
+      {
+        "character_id": "waitress",
+        "character_name": "Sarah the Waitress",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "librarian",
+        "character_name": "Margaret the Librarian",
+        "vote_intent": null,
+        "summary": "The individual prioritizes healthcare and education as intertwined pillars of equity, advocating for community-based solutions and preventive care without expanding costly bureaucracies. They emphasize social cohesion and equitable resource allocation, showing a shift toward valuing preventive care and informed communities. While not explicitly discussing immigration, their focus on sustainable, needs-driven policies suggests cautious openness to managed immigration that supports community growt"
+      },
+      {
+        "character_id": "monk",
+        "character_name": "Brother Thomas",
+        "vote_intent": null,
+        "summary": "The individual prioritizes healthcare as a sacred duty, advocating for resource allocation to existing clinics and preventive care without expanding costly bureaucracies. They emphasize faith-based immigration to preserve the village\u2019s spiritual character, opposing secular or multi-faith policies. Their thinking remains rooted in traditional values but shows openness to aligning health equity"
+      },
+      {
+        "character_id": "police",
+        "character_name": "Officer James",
+        "vote_intent": null,
+        "summary": ""
+      },
+      {
+        "character_id": "stay_at_home_mom",
+        "character_name": "Emily the Mother",
+        "vote_intent": null,
+        "summary": ""
+      }
+    ]
+  }
+}

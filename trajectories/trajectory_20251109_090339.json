@@ -1,0 +1,197 @@
+{
+  "metadata": {
+    "topic": "Healthcare Reform",
+    "num_rounds": 1,
+    "timestamp": "2025-11-09T09:03:39.258829",
+    "duration_seconds": 352.464567
+  },
+  "characters": [
+    {
+      "id": "politician_1",
+      "name": "Alex",
+      "role": "Politician 1",
+      "sprite": "alex_politician1.png",
+      "initial_position": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "politician_2",
+      "name": "Anthony",
+      "role": "Politician 2",
+      "sprite": "anthony_politician2.png",
+      "initial_position": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "waitress",
+      "name": "Sarah the Waitress",
+      "role": "Waitress",
+      "sprite": "sarah_waitress.png",
+      "initial_position": {
+        "x": 400,
+        "y": 100
+      }
+    },
+    {
+      "id": "librarian",
+      "name": "Margaret the Librarian",
+      "role": "Librarian",
+      "sprite": "margaret_librarian.png",
+      "initial_position": {
+        "x": 550,
+        "y": 100
+      }
+    },
+    {
+      "id": "monk",
+      "name": "Brother Thomas",
+      "role": "Monk",
+      "sprite": "thomas_monk.png",
+      "initial_position": {
+        "x": 100,
+        "y": 250
+      }
+    },
+    {
+      "id": "police",
+      "name": "Officer James",
+      "role": "Police",
+      "sprite": "james_police.png",
+      "initial_position": {
+        "x": 250,
+        "y": 250
+      }
+    },
+    {
+      "id": "stay_at_home_mom",
+      "name": "Emily the Mother",
+      "role": "Stay-at-home Mom",
+      "sprite": "emily_mother.png",
+      "initial_position": {
+        "x": 400,
+        "y": 250
+      }
+    }
+  ],
+  "speeches": [
+    {
+      "round": 1,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "Good evening, everyone. As someone who\u2019s spent years listening to the struggles of our community, I\u2019m here to say this: healthcare should be a right, not a privilege. Expanding access to affordable care through public options and preventive services isn\u2019t just policy\u2014it\u2019s a moral imperative. Let\u2019s build a system that prioritizes people over profits, and I\u2019d love to hear your ideas on how we get there.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:04:05.550515",
+      "sequence": 0
+    },
+    {
+      "round": 1,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "\"Good evening, folks. As your representative, my priority is to protect the values that have made this village strong\u2014tradition, responsibility, and local control. Healthcare should be about choice, not bureaucracy, and I\u2019ll fight to ensure our system remains affordable, efficient, and rooted in the communities we serve. Together, we\u2019ll build solutions that honor your hard work, not replace it.\"",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:04:05.550522",
+      "sequence": 1
+    },
+    {
+      "round": 2,
+      "character_id": "waitress",
+      "character_name": "Sarah the Waitress",
+      "message": "I believe healthcare should be both a right and a responsibility\u2014accessible, affordable, and rooted in community trust. Let\u2019s bridge the gap between public investment and personal choice by empowering local solutions that prioritize care over cost, ensuring no one is left behind. Together, we can build a system that honors both compassion and accountability.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:05:13.850446",
+      "sequence": 2
+    },
+    {
+      "round": 2,
+      "character_id": "stay_at_home_mom",
+      "character_name": "Emily the Mother",
+      "message": "As a mother, I believe healthcare is a right that ensures my kids can grow up healthy and safe. We need policies that prioritize preventive care and affordable access for all families\u2014especially those struggling to make ends meet. Let\u2019s invest in communities, not just systems, so no child misses out on the care they deserve.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:05:46.313303",
+      "sequence": 3
+    },
+    {
+      "round": 2,
+      "character_id": "librarian",
+      "character_name": "Margaret the Librarian",
+      "message": "Thank you, everyone. As someone who\u2019s spent years curating knowledge, I\u2019ve seen how preventive care and community investment reduce long-term costs\u2014studies show early intervention cuts hospitalizations by up to 30%. Let\u2019s build a system that values health as a foundation for opportunity,",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:06:24.355945",
+      "sequence": 4
+    },
+    {
+      "round": 2,
+      "character_id": "monk",
+      "character_name": "Brother Thomas",
+      "message": "[Empty fallback] I understand your message.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:07:11.876478",
+      "sequence": 5
+    },
+    {
+      "round": 2,
+      "character_id": "police",
+      "character_name": "Officer James",
+      "message": "[Empty fallback] I understand your message.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:08:01.993193",
+      "sequence": 6
+    },
+    {
+      "round": 2,
+      "character_id": "politician_1",
+      "character_name": "Alex",
+      "message": "[Empty fallback] I understand your message.",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:08:50.678454",
+      "sequence": 7
+    },
+    {
+      "round": 2,
+      "character_id": "politician_2",
+      "character_name": "Anthony",
+      "message": "\"Thank you. Healthcare is a cornerstone of our community\u2019s strength, and I believe it thrives when we empower local businesses and families to make choices that reflect their values. Let\u2019s invest in partnerships that support preventive care and affordable options\u2014without sacrificing the freedom and responsibility that make our village unique. Together, we\u2019ll build a system that honors both our traditions and our shared future.\"",
+      "emoji_summary": "\ud83d\udcac",
+      "timestamp": "2025-11-09T09:09:08.412462",
+      "sequence": 8
+    }
+  ],
+  "final_state": {
+    "character_interests": [
+      {
+        "character_id": "waitress",
+        "character_name": "Sarah the Waitress",
+        "vote_intent": null,
+        "summary": "[Empty fallback] I understand your message."
+      },
+      {
+        "character_id": "librarian",
+        "character_name": "Margaret the Librarian",
+        "vote_intent": null,
+        "summary": "[Empty fallback] I understand your message."
+      },
+      {
+        "character_id": "monk",
+        "character_name": "Brother Thomas",
+        "vote_intent": null,
+        "summary": "The individual emphasizes healthcare as a fundamental right, prioritizing affordability, preventive care, and community-based solutions to ensure equitable access. Key concerns revolve around reducing long-term costs through early intervention and balancing public investment with personal responsibility. Their stance shows a shift toward integrating community trust and proactive policies to address systemic gaps."
+      },
+      {
+        "character_id": "police",
+        "character_name": "Officer James",
+        "vote_intent": null,
+        "summary": "[Empty fallback] I understand your message."
+      },
+      {
+        "character_id": "stay_at_home_mom",
+        "character_name": "Emily the Mother",
+        "vote_intent": null,
+        "summary": "[Empty fallback] I understand your message."
+      }
+    ]
+  }
+}

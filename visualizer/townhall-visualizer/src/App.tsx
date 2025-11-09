@@ -63,8 +63,9 @@ const POLITICIAN_LECTERNS = [
   { gridX: 5, gridY: 2, speakerSpot: { x: 5, y: 1 } },
   { gridX: 15, gridY: 2, speakerSpot: { x: 15, y: 1 } }
 ]
-const AUDIENCE_LECTERN = { gridX: 10, gridY: 5, speakerSpot: { x: 10, y: 4 } }
+const AUDIENCE_LECTERN = { gridX: 10, gridY: 5, speakerSpot: { x: 10, y: 6 } }
 const STAGE_ROWS = [1, 2, 3]
+const STAGE_MARGIN_COLS = 2
 const AUDIENCE_SECTION = { startY: 7, endY: 11 }
 
 const getPoliticianLectern = (charId: string) => {
@@ -317,7 +318,8 @@ function App() {
             pos.path = []
             pos.isMoving = false
             pos.animFrame = 1
-            pos.direction = 'down'
+            const isPolitician = getPoliticianLectern(char.id) !== null
+            pos.direction = isPolitician ? 'down' : 'up'
             pos.targetGridX = pos.gridX
             pos.targetGridY = pos.gridY
             setSpeakerState('speaking')
@@ -352,6 +354,10 @@ function App() {
             pos.animFrame = (pos.animFrame + 1) % 3
           } else {
             pos.animFrame = 1
+            const isPolitician = getPoliticianLectern(char.id) !== null
+            if (!isPolitician && !pos.isMoving && char.id !== lecternOccupiedByRef.current) {
+              pos.direction = 'up'
+            }
           }
         })
 
@@ -436,18 +442,18 @@ function App() {
       const char = trajectory.characters.find(c => c.id === speakerId)
       const isPolitician = char && getPoliticianLectern(char.id) !== null
       
-      if (isPolitician) {
-        setSpeakerState('done')
-        setCurrentSpeechIndex(prev => prev + 1)
-      } else {
-        const words = speech.message.trim().split(/\s+/).filter(Boolean).length
-        const durationMs = Math.max(2500, Math.min(15000, words * 300))
+      const words = speech.message.trim().split(/\s+/).filter(Boolean).length
+      const durationMs = Math.max(2500, Math.min(15000, words * 300))
 
-        if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
-        speechTimerRef.current = window.setTimeout(() => {
+      if (speechTimerRef.current) clearTimeout(speechTimerRef.current)
+      speechTimerRef.current = window.setTimeout(() => {
+        if (isPolitician) {
+          setSpeakerState('done')
+          setCurrentSpeechIndex(prev => prev + 1)
+        } else {
           setSpeakerState('leaving_lectern')
-        }, durationMs)
-      }
+        }
+      }, durationMs)
       speakingTimerStartedRef.current = true
     }
 
@@ -603,9 +609,9 @@ function App() {
             <div
               className="absolute"
               style={{
-                left: '50px',
+                left: `${50 + STAGE_MARGIN_COLS * CELL_SIZE}px`,
                 top: `${50 + STAGE_ROWS[0] * CELL_SIZE}px`,
-                width: `${GRID_COLS * CELL_SIZE}px`,
+                width: `${(GRID_COLS - 2 * STAGE_MARGIN_COLS) * CELL_SIZE}px`,
                 height: `${STAGE_ROWS.length * CELL_SIZE}px`,
                 backgroundColor: '#8B4513',
                 border: '2px solid #654321',
