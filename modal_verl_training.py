@@ -27,12 +27,10 @@ image = (
 )
 
 verl_image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .apt_install("git")
-    .run_commands(
-        "pip install torch==2.1.0+cu121 --index-url https://download.pytorch.org/whl/cu121",
-    )
     .pip_install(
+        "torch==2.1.0",
         "transformers==4.36.0",
         "accelerate==0.25.0",
         "datasets==2.15.0",
