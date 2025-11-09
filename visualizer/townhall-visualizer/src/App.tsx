@@ -202,6 +202,11 @@ function App() {
           if (char.id !== lecternOccupiedByRef.current || speakerStateRef.current !== 'moving_to_lectern') {
             occupiedCells.add(`${LECTERN.gridX},${LECTERN.gridY}`)
           }
+          
+          if (char.id !== lecternOccupiedByRef.current && (speakerStateRef.current === 'moving_to_lectern' || speakerStateRef.current === 'speaking')) {
+            const spot = getLecternSpot()
+            occupiedCells.add(`${spot.x},${spot.y}`)
+          }
 
           if (pos.path.length === 0) {
             if (!isCurrentSpeaker && speakerStateRef.current !== 'moving_to_lectern' && speakerStateRef.current !== 'speaking' && speakerStateRef.current !== 'leaving_lectern' && Math.random() < 0.3) {
@@ -245,11 +250,11 @@ function App() {
                 pos.animFrame = 1
               }
             } else {
-              occupiedCells.delete(`${nextCell.x},${nextCell.y}`)
               const newPath = bfs(pos.gridX, pos.gridY, pos.targetGridX, pos.targetGridY, occupiedCells)
-              occupiedCells.add(`${nextCell.x},${nextCell.y}`)
-              pos.path = newPath
-              if (newPath.length === 0) {
+              if (newPath.length > 0) {
+                pos.path = newPath
+              } else {
+                pos.path = []
                 pos.isMoving = false
                 pos.animFrame = 1
               }
